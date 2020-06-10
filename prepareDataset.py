@@ -8,7 +8,7 @@ import os
 from Bio import SeqIO
 import numpy as np
 
-def readAllSeqs():
+def readAllSeqsML():
     files=['ec_1.fasta', 'ec_2.fasta', 'ec_3.fasta', 'ec_4.fasta', 'ec_5.fasta',
            'ec_6.fasta', 'ec_7.fasta']
     data={}
@@ -30,32 +30,30 @@ def readAllSeqs():
     
     return data, target
 
-def readNr40(data, target):
-    '''files=['ec_1_40.fasta', 'ec_2_40.fasta', 'ec_3_40.fasta', 'ec_4_40.fasta',
-           'ec_5_40.fasta', 'ec_6_40.fasta', 'ec_7_40.fasta']'''
-    files=['ec_1.fasta', 'ec_2.fasta', 'ec_3.fasta', 'ec_4.fasta', 'ec_5.fasta',
-           'ec_6.fasta', 'ec_7.fasta']
-    nrsequens={}
-    nrtargets={}
-    targ = []
-    fw = open('multiLabelEnzymes_All.txt', 'a')
+def readNr40SL():
+    files=['ec_1_40.fasta', 'ec_2_40.fasta', 'ec_3_40.fasta', 'ec_4_40.fasta',
+           'ec_5_40.fasta', 'ec_6_40.fasta', 'ec_7_40.fasta']
+    '''files=['ec_1.fasta', 'ec_2.fasta', 'ec_3.fasta', 'ec_4.fasta', 'ec_5.fasta',
+           'ec_6.fasta', 'ec_7.fasta']'''
+    prots={}
+    labels={}
+    
     for i in range(7):
         file = os.path.join('data', files[i])
         for seq_record in SeqIO.parse(file, 'fasta'):
             seqid = seq_record.id
             seqid = seqid.split('|')
             seqid = seqid[1]
-            if seqid in nrsequens.keys():
-                #fw.write('{} has multi-label\n'.format(seqid))
-                targ.append(target[seqid])
+            if seqid in prots.keys(): # seqid has been seen in other file
+                prots.pop(seqid)
+                labels.pop(seqid)
             else:
-                nrsequens[seqid] = seq_record.seq
-                nrtargets[seqid] = target[seqid]
-    fw.close()
-    #return nrsequens, nrtargets
-    return targ
+                prots[seqid] = seq_record.seq
+                labels[seqid] = i
+    
+    return prots, labels
     
 if __name__ == "__main__":   
-    nrsequens, nrtargets = readNr40(data, target)        
+    prots, labels = readNr40SL()       
         
         
