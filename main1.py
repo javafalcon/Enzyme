@@ -47,7 +47,7 @@ def CapsNet(input_shape, num_classes, num_routing):
     
     return models.Model([x,y], [out_caps, x_recon])
 
-def trainAndTest(model, data, lr, lam_recon, batch_size, epochs):
+def trainAndTest_Caps(model, data, lr, lam_recon, batch_size, epochs):
     (x_train, y_train),(x_test, y_test) = data
     
     model.compile(optimizer=optimizers.Adam(lr=lr),
@@ -69,6 +69,30 @@ def trainAndTest(model, data, lr, lam_recon, batch_size, epochs):
               validation_data=[[x_test,y_test],[y_test,x_test]],
               callbacks=[lr_decay])
     y_pred, x_recon = model.predict([x_test, y_test], batch_size=batch_size)
+    
+    return y_pred
+
+def trainAndTest(model, data, lr, batch_size, epochs):
+    (x_train, y_train),(x_test, y_test) = data
+    
+    model.compile(optimizer=optimizers.Adam(learning_rate=lr),
+                 loss='categorical_crossentropy',
+                 metrics=['accuracy'])
+    
+    # callbacks
+    #log = callbacks.CSVLogger('./result/PDNA-543/log.csv')
+    #tb = callbacks.TensorBoard(log_dir='./result/PDNA-543/tensorboard-logs',
+    #                           batch_size=batch_size, histogram_freq=1)
+    #checkpoint = callbacks.ModelCheckpoint('./result/PDNA-543/weights-{epoch:02d}.h5',
+    #                                       save_best_only=True, save_weights_only=True, verbose=1)
+    lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
+    
+    model.fit(x_train, y_train,
+              batch_size=batch_size,
+              epochs=epochs,
+              validation_data=[x_test,y_test],
+              callbacks=[lr_decay])
+    y_pred = model.predict(x_test, batch_size=batch_size)
     
     return y_pred
 
@@ -94,7 +118,69 @@ def writeMetrics(metricsFile, y_true, y_pred, noteInfo=''):
         fw.write("\nRecall: %f "%recall_score(labels,predicts))
         fw.write("\nPre: %f "%precision_score(labels,predicts))
         
+def CNN(input_shape, num_classes):
+    x_input = tf.keras.Input(shape=input_shape)
+    
+    x = layers.Conv2D(64, (3,3), strides=1,
+                          padding='same', activation='relu',
+                          name='conv1')(x_input)
+    x = layers.Conv2D(64, (3,3), strides=1,
+                          padding='same', activation='relu',
+                          name='conv2')(x)
+    x  = layers.Conv2D(128, (3,3), strides=1,
+                          padding='same', activation='relu',
+                          name='conv3')(x)
+    
+    x = layers.MaxPool2D(pool_size=(2,2), strides=2)(x)
+    
+    x = layers.Conv2D(128, (3,3), strides=1,
+                          padding='same', activation='relu',
+                          name='conv4')(x)    
+    x = layers.Conv2D(256, (3,3), strides=1,
+                          padding='same', activation='relu',
+                          name='conv5')(x)
+    x = layers.Conv2D(256, (3,3), strides=1,
+                          padding='same', activation='relu',
+                          name='conv6')(x)
+    
+    x = layers.MaxPool2D(pool_size=(2,2), strides=2)(x)
+    
+    x = layers.Dropout(0.25)(x)
+    
+    x = layers.Flatten()(x)
+    
+    x = layers.Dense(512, activation='relu', name='dense1')(x)
+    
+    x = layers.Dense(1024, activation='relu', name='dense2')(x)
+    
+    out = layers.Dense(num_classes, activation='softmax')(x)
+    
+    return tf.keras.Model(x_input, out)
 
+def CnnNet(input_shape, n_class):
+    regular = tf.keras.regularizers.l1(0.01)
+    x = layers.Input(shape=input_shape)
+    conv1 = layers.Conv2D(32, (5,5), strides=1,
+                          padding='same', activation='relu', 
+                          kernel_regularizer=regular,
+                          name='conv1')(x)
+    conv2 = layers.Conv2D(32, (5,5), padding='same', activation='relu', name='conv2')(conv1)
+    pool1 = layers.MaxPool2D(pool_size=(2,2))(conv2)
+    drop1 = layers.Dropout(0.25)(pool1)
+    
+    conv3 = layers.Conv2D(64,(5,5), padding='same',
+                          activation='relu', name='conv3')(drop1)
+    conv4 = layers.Conv2D(128, (5,5), activation='relu', name='conv4')(conv3)
+    pool2 = layers.MaxPool2D()(conv4)
+    drop2 = layers.Dropout(0.25)(pool2)
+    
+    flat = layers.Flatten()(drop2)
+    dens1 = layers.Dense(512, activation='relu')(flat)
+    drop3 = layers.Dropout(0.5)(dens1)
+    out = layers.Dense(n_class, activation='softmax')(drop3)
+    
+    return models.Model(x, out)   
+ 
 if __name__ == "__main__":
     row, col, channels = 21, 21, 1
     kfold = 5
@@ -110,11 +196,12 @@ if __name__ == "__main__":
         y_train = to_categorical(y_train_Kf[k], num_classes=num_classes)
         y_test = to_categorical(y_test_Kf[k], num_classes=num_classes)
         
-        model = CapsNet(input_shape=[row,col,channels], num_classes=num_classes, num_routing=5)
+        #model = CapsNet(input_shape=[row,col,channels], num_classes=num_classes, num_routing=5)
+        model = CNN(input_shape=[row,col,channels], num_classes=num_classes)
         model.summary()
     
         pred = trainAndTest(model, ((train_X, y_train), (test_X, y_test)),
-                     lr=0.001, lam_recon=0.35, batch_size=48, epochs=10)
+                     lr=0.001, batch_size=48, epochs=10)
         y_pred = np.concatenate((y_pred, pred))
         y_true = np.concatenate((y_true,y_test))
         
