@@ -15,3 +15,7 @@ ACC: 0.375294 0/5 cross training-testing:
 0	1190	0	0	0	0	0	
 0	448	0	0	0	0	0	
 ACC: 0.366040 
+predict EC and Not EC:
+5579	1
+0	5584
+ACC:0.999910MCC:0.999821

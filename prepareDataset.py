@@ -6,6 +6,9 @@ Created on Mon Jun  8 13:12:44 2020
 """
 import os
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
+from Bio.Alphabet import IUPAC
 import numpy as np
 from SeqFormulate import DAA_chaosGraph
 from sklearn.model_selection import StratifiedKFold
@@ -36,7 +39,7 @@ def readAllEnzymeSeqsML():
 
 # read nr40 data as single label
 # Proteins who have multi lables were removed
-def readEnzymeNr40SL():
+def readSLEnzymeNr40():
     files=['ec_1_40.fasta', 'ec_2_40.fasta', 'ec_3_40.fasta', 'ec_4_40.fasta',
            'ec_5_40.fasta', 'ec_6_40.fasta', 'ec_7_40.fasta']
     '''files=['ec_1.fasta', 'ec_2.fasta', 'ec_3.fasta', 'ec_4.fasta', 'ec_5.fasta',
@@ -47,6 +50,8 @@ def readEnzymeNr40SL():
     for i in range(7):
         file = os.path.join('data', files[i])
         for seq_record in SeqIO.parse(file, 'fasta'):
+            if len(str(seq_record.seq)) < 50:
+                continue
             seqid = seq_record.id
             seqid = seqid.split('|')
             seqid = seqid[1]
@@ -56,11 +61,46 @@ def readEnzymeNr40SL():
                 prot_seqs.pop(seqid)
                 prot_labels.pop(seqid)
             else:
-                # The protien is firstly seen, so add it to protein dict
+                # The protien is firstly seen, so add it to protein dict               
                 prot_seqs[seqid] = str(seq_record.seq)
                 prot_labels[seqid] = i
     
     return prot_seqs, prot_labels
+
+def readMLEnzyme():
+    '''files=['ec_1_40.fasta', 'ec_2_40.fasta', 'ec_3_40.fasta', 'ec_4_40.fasta',
+           'ec_5_40.fasta', 'ec_6_40.fasta', 'ec_7_40.fasta']'''
+    files=['ec_1.fasta', 'ec_2.fasta', 'ec_3.fasta', 'ec_4.fasta', 'ec_5.fasta',
+           'ec_6.fasta', 'ec_7.fasta']
+    
+    prot_seqs = {}
+    prot_labels = {}
+    MLEC_seqs = {}
+    MLEC_labels = {}
+    
+    for i in range(7):
+        file = os.path.join('data', files[i])
+        for seq_record in SeqIO.parse(file, 'fasta'):
+            if len(str(seq_record.seq)) < 50:
+                continue
+            seqid = seq_record.id
+            seqid = seqid.split('|')
+            seqid = seqid[1]
+
+            if seqid in prot_seqs.keys():
+                # The protein has multi-lables, so remove it from protein dict
+                MLEC_seqs[seqid] = str(seq_record.seq)
+                t = MLEC_labels.get(seqid, prot_labels[seqid])
+                t[i] = 1
+                MLEC_labels[seqid] = t
+                
+            else:
+                # The protien is firstly seen, so add it to protein dict               
+                prot_seqs[seqid] = str(seq_record.seq)
+                t = np.zeros((7,))
+                t[i] = 1
+                prot_labels[seqid] = t
+    return MLEC_seqs, MLEC_labels
 
 def getNotEnzyme(n_samples, random_state=None):
     seq_records = SeqIO.parse('data/NotEC_40.fasta', 'fasta')
@@ -69,8 +109,9 @@ def getNotEnzyme(n_samples, random_state=None):
     n = 0
     prot_seqs = []
     for seq_record in seq_records:
-        prot_seqs.append(str(seq_record.seq))
-        n += 1
+        if len(str(seq_record.seq)) >= 50:
+            prot_seqs.append(str(seq_record.seq))
+            n += 1
         if n > n_samples:
             break
     return prot_seqs
@@ -87,7 +128,7 @@ def load_EC_data():
 
 def load_data():
     ec_seqs, ec_labels = readEnzymeNr40SL()
-    not_ec = getNotEnzyme(27909, random_state=42)
+    not_ec = getNotEnzyme(27907, random_state=42)
     pos_x = DAA_chaosGraph(ec_seqs)
     neg_x = DAA_chaosGraph(not_ec)
     x = np.concatenate((pos_x, neg_x))
@@ -113,7 +154,17 @@ def load_Kf_data(kfold=5, random_state=None):
     return (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf)
 
 if __name__ == "__main__":   
-    X, y = load_data()
+    MLECseqs, MLEClabels = readMLEnzyme()
+    seq_records = []
+    for key in MLECseqs.keys():
+        seq_record = SeqRecord(Seq(MLECseqs[key], IUPAC.protein), id=key)
+        seq_records.append(seq_record)
+    SeqIO.write(seq_records,'mlec.fasta','fasta')
+    '''count = 0
+    for key in ECseqs.keys():
+        if len(ECseqs[key]) < 50:
+            count += 1
+            print("{}:{}'s length is less than 50".format(count,key))'''
 
         
         

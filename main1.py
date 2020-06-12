@@ -8,7 +8,7 @@ Created on Wed Jun 10 11:17:23 2020
 
 from Capsule import CapsuleLayer, squash, Length, Mask, margin_loss
 
-from prepareDataset import load_Kf_data, load_data
+from prepareDataset import load_Kf_data, load_data, load_EC_data
 from resnet import resnet_v1
 
 import tensorflow as tf
@@ -182,7 +182,7 @@ def CnnNet(input_shape, n_class):
     
     return models.Model(x, out)   
 
-def sl_ec_cross():
+def classify_ecsl_cross():
     row, col, channels = 21, 21, 1
     kfold = 5
     num_classes = 7
@@ -221,6 +221,9 @@ def classify_ec(lr=0.001):
     
     x_train = x_train.reshape((-1, row, col, channels))
     y_train = to_categorical(y_train, num_classes=2)
+    
+    x_test = x_test.reshape((-1, row, col, channels))
+    
     model = resnet_v1(input_shape=(row, col, channels), depth=20, num_classes=num_classes)
     model.summary()
     
@@ -231,21 +234,22 @@ def classify_ec(lr=0.001):
     
     model.fit(x_train, y_train,
               batch_size=50,
-              epochs=30,
+              epochs=20,
               validation_split=0.1,
               callbacks=[lr_decay])
     
     pred = model.predict(x_test, batch_size=50)
     
     noteInfo = "\npredict EC and Not EC:"
-    y_true = np.argmax(y_test, 1)
+    #y_true = np.argmax(y_test, 1)
     y_pred = np.argmax(pred, 1)
-    cm = confusion_matrix(y_true, y_pred)
+    cm = confusion_matrix(y_test, y_pred)
     with open(metricsFile, 'a') as fw:
         fw.write(noteInfo + "\n")
         for i in range(2):
             fw.write(str(cm[i,0]) + '\t' + str(cm[i,1]) + '\n')
-        fw.write("ACC:%f"%accuracy_score(y_true, y_pred))
-        fw.write("MCC:%f"%matthews_corrcoef(y_true, y_pred))
+        fw.write("ACC:%f"%accuracy_score(y_test, y_pred))
+        fw.write("MCC:%f"%matthews_corrcoef(y_test, y_pred))
 if __name__ == "__main__":
-    classify_ec(0.001)
+    #classify_ec(0.001)
+    x, y = load_EC_data()
