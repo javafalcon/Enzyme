@@ -8,7 +8,8 @@ Created on Wed Jun 10 11:17:23 2020
 
 from Capsule import CapsuleLayer, squash, Length, Mask, margin_loss
 
-from prepareDataset import load_Kf_data
+from prepareDataset import load_Kf_data, load_data
+from resnet import resnet_v1
 
 import tensorflow as tf
 from tensorflow.keras import layers, models, optimizers, callbacks, backend
@@ -18,6 +19,8 @@ import numpy as np
 
 from sklearn.metrics import accuracy_score, matthews_corrcoef, confusion_matrix
 from sklearn.metrics import f1_score,roc_auc_score,recall_score,precision_score
+from sklearn.model_selection import train_test_split
+
 
 def PrimaryCap(inputs, dim_vector, n_channels, kernel_size, strides, padding):
     output = layers.Conv2D(filters=dim_vector*n_channels, kernel_size=kernel_size,
@@ -47,10 +50,10 @@ def CapsNet(input_shape, num_classes, num_routing):
     
     return models.Model([x,y], [out_caps, x_recon])
 
-def trainAndTest_Caps(model, data, lr, lam_recon, batch_size, epochs):
+def CapsTrainAndTest(model, data, lr, lam_recon, batch_size, epochs):
     (x_train, y_train),(x_test, y_test) = data
     
-    model.compile(optimizer=optimizers.Adam(lr=lr),
+    model.compile(optimizer=optimizers.Adam(learning_rate=lr),
                  loss=[margin_loss, 'mse'],
                  loss_weights=[1., lam_recon],
                  metrics={'out_caps': 'accuracy'})
@@ -72,7 +75,8 @@ def trainAndTest_Caps(model, data, lr, lam_recon, batch_size, epochs):
     
     return y_pred
 
-def trainAndTest(model, data, lr, batch_size, epochs):
+
+def TrainAndTest(model, data, lr, batch_size, epochs):
     (x_train, y_train),(x_test, y_test) = data
     
     model.compile(optimizer=optimizers.Adam(learning_rate=lr),
@@ -102,7 +106,6 @@ def lr_schedule(epoch):
 
 def writeMetrics(metricsFile, y_true, y_pred, noteInfo=''):
     predicts = np.argmax(y_pred, 1)
-    predicts = predicts[:,0]
     labels = np.argmax(y_true, 1)
     cm=confusion_matrix(labels,predicts)
     with open(metricsFile,'a') as fw:
@@ -115,8 +118,6 @@ def writeMetrics(metricsFile, y_true, y_pred, noteInfo=''):
             fw.write("\n")
             
         fw.write("ACC: %f "%accuracy_score(labels,predicts))
-        fw.write("\nRecall: %f "%recall_score(labels,predicts))
-        fw.write("\nPre: %f "%precision_score(labels,predicts))
         
 def CNN(input_shape, num_classes):
     x_input = tf.keras.Input(shape=input_shape)
@@ -180,8 +181,8 @@ def CnnNet(input_shape, n_class):
     out = layers.Dense(n_class, activation='softmax')(drop3)
     
     return models.Model(x, out)   
- 
-if __name__ == "__main__":
+
+def sl_ec_cross():
     row, col, channels = 21, 21, 1
     kfold = 5
     num_classes = 7
@@ -197,11 +198,11 @@ if __name__ == "__main__":
         y_test = to_categorical(y_test_Kf[k], num_classes=num_classes)
         
         #model = CapsNet(input_shape=[row,col,channels], num_classes=num_classes, num_routing=5)
-        model = CNN(input_shape=[row,col,channels], num_classes=num_classes)
+        model = resnet_v1(input_shape=(row, col, channels), depth=20, num_classes=num_classes)
         model.summary()
     
-        pred = trainAndTest(model, ((train_X, y_train), (test_X, y_test)),
-                     lr=0.001, batch_size=48, epochs=10)
+        pred = TrainAndTest(model, ((train_X, y_train), (test_X, y_test)),
+                     lr=0.001, batch_size=50, epochs=20)
         y_pred = np.concatenate((y_pred, pred))
         y_true = np.concatenate((y_true,y_test))
         
@@ -209,4 +210,42 @@ if __name__ == "__main__":
         writeMetrics(metricsFile, y_test, pred, noteInfo)
     
     noteInfo = "\nTotal validation result:"
-    writeMetrics(metricsFile, y_true, y_pred, noteInfo)
+    writeMetrics(metricsFile, y_true, y_pred, noteInfo)    
+    
+def classify_ec(lr=0.001):
+    row, col, channels = 21, 21, 1
+    num_classes = 2
+    metricsFile = 'result.txt'
+    x, y = load_data()
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=59)
+    
+    x_train = x_train.reshape((-1, row, col, channels))
+    y_train = to_categorical(y_train, num_classes=2)
+    model = resnet_v1(input_shape=(row, col, channels), depth=20, num_classes=num_classes)
+    model.summary()
+    
+    model.compile(optimizer=optimizers.Adam(learning_rate=lr),
+                 loss='categorical_crossentropy',
+                 metrics=['accuracy'])
+    lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
+    
+    model.fit(x_train, y_train,
+              batch_size=50,
+              epochs=30,
+              validation_split=0.1,
+              callbacks=[lr_decay])
+    
+    pred = model.predict(x_test, batch_size=50)
+    
+    noteInfo = "\npredict EC and Not EC:"
+    y_true = np.argmax(y_test, 1)
+    y_pred = np.argmax(pred, 1)
+    cm = confusion_matrix(y_true, y_pred)
+    with open(metricsFile, 'a') as fw:
+        fw.write(noteInfo + "\n")
+        for i in range(2):
+            fw.write(str(cm[i,0]) + '\t' + str(cm[i,1]) + '\n')
+        fw.write("ACC:%f"%accuracy_score(y_true, y_pred))
+        fw.write("MCC:%f"%matthews_corrcoef(y_true, y_pred))
+if __name__ == "__main__":
+    classify_ec(0.001)
