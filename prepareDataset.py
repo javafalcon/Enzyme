@@ -22,6 +22,8 @@ def readAllEnzymeSeqsML():
     for i in range(7):
         file = os.path.join('data', files[i])
         for seq_record in SeqIO.parse(file, 'fasta'):
+            if len(str(seq_record.seq)) < 50:
+                continue
             s = seq_record.id
             pid = s.split('|')
             protId = pid[1]
@@ -36,12 +38,33 @@ def readAllEnzymeSeqsML():
     
     return data, target
 
-
+def writeSLEC(data, target):
+    MLEC_seqs, MLEC_labels = {}, {}
+    SLEC_seqs, SLEC_labels = {}, {}
+    
+    for key in data.keys():
+        targ = target[key]
+        if np.sum(targ) > 1: # multi-label
+            MLEC_seqs[key] = data[key]
+            MLEC_labels[key] = target[key]
+        else: # single-label
+            SLEC_seqs[key] = data[key]
+            SLEC_labels[key] = np.argmax(targ)
+            
+    # write into files
+    seq_records_ls = [[] for i in range(7)]
+    for key in SLEC_seqs.keys():
+        seq_record = SeqRecord(Seq(SLEC_seqs[key], IUPAC.protein), id=key)
+        seq_records_ls[SLEC_labels[key]].append(seq_record)
+    
+    for i in range(7):
+        SeqIO.write(seq_records_ls[i],'data/slec_{}.fasta'.format(i+1),'fasta')
+            
 # read nr40 data as single label
 # Proteins who have multi lables were removed
-def readSLEnzymeNr40():
-    files=['ec_1_40.fasta', 'ec_2_40.fasta', 'ec_3_40.fasta', 'ec_4_40.fasta',
-           'ec_5_40.fasta', 'ec_6_40.fasta', 'ec_7_40.fasta']
+def readSLEnzyme(files):
+    '''files=['ec_1_40.fasta', 'ec_2_40.fasta', 'ec_3_40.fasta', 'ec_4_40.fasta',
+           'ec_5_40.fasta', 'ec_6_40.fasta', 'ec_7_40.fasta']'''
     '''files=['ec_1.fasta', 'ec_2.fasta', 'ec_3.fasta', 'ec_4.fasta', 'ec_5.fasta',
            'ec_6.fasta', 'ec_7.fasta']'''
     prot_seqs = {}
@@ -116,8 +139,10 @@ def getNotEnzyme(n_samples, random_state=None):
             break
     return prot_seqs
 
-def load_EC_data():
-    prot_seqs, prot_labels = readEnzymeNr40SL()
+def load_SL_EC_data():
+    files=['ec_1_40.fasta', 'ec_2_40.fasta', 'ec_3_40.fasta', 'ec_4_40.fasta',
+           'ec_5_40.fasta', 'ec_6_40.fasta', 'ec_7_60.fasta']
+    prot_seqs, prot_labels = readSLEnzyme(files)
     seqs, labels = [], []
     for key in prot_seqs.keys():
         seqs.append(prot_seqs[key])
@@ -126,8 +151,23 @@ def load_EC_data():
     y = np.array(labels)
     return X, y
 
+def load_ML_SL_EC_data():
+    mlec_seqs = []
+    for seq_record in SeqIO.parse('data\\mlec_60.fasta','fasta'):
+        mlec_seqs.append(str(seq_record.seq))
+    mlec_x = DAA_chaosGraph(mlec_seqs)
+
+    slec_seqs, _ = readSLEnzyme()
+    slec_x = DAA_chaosGraph(slec_seqs)
+    slec_x = shuffle(slec_x)
+    x = np.concatenate((slec_x[:5000], mlec_x))  
+    y = np.ones((len(x),))
+    y[:5000] = 0
+    
+    return x, y
+''
 def load_data():
-    ec_seqs, ec_labels = readEnzymeNr40SL()
+    ec_seqs, ec_labels = readSLEnzyme()
     not_ec = getNotEnzyme(27907, random_state=42)
     pos_x = DAA_chaosGraph(ec_seqs)
     neg_x = DAA_chaosGraph(not_ec)
@@ -136,10 +176,10 @@ def load_data():
     y[:len(pos_x)] = 1
     return x, y
 
-def load_Kf_data(kfold=5, random_state=None):
+def load_Kf_data(X, y, kfold=5, random_state=None):
     X_train_Kf, y_train_Kf = [], []
     X_test_Kf, y_test_Kf = [], []
-    X, y = load_data()
+
     skf = StratifiedKFold(n_splits=kfold, random_state=random_state, shuffle=True)
     for train_index, test_index in skf.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
@@ -153,13 +193,16 @@ def load_Kf_data(kfold=5, random_state=None):
         
     return (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf)
 
-if __name__ == "__main__":   
-    MLECseqs, MLEClabels = readMLEnzyme()
+if __name__ == "__main__": 
+    data, target = readAllEnzymeSeqsML()
+    writeSLEC(data, target)
+    #x,y = load_SL_EC_data()
+    '''MLECseqs, MLEClabels = readMLEnzyme()
     seq_records = []
     for key in MLECseqs.keys():
         seq_record = SeqRecord(Seq(MLECseqs[key], IUPAC.protein), id=key)
         seq_records.append(seq_record)
-    SeqIO.write(seq_records,'mlec.fasta','fasta')
+    SeqIO.write(seq_records,'mlec.fasta','fasta')'''
     '''count = 0
     for key in ECseqs.keys():
         if len(ECseqs[key]) < 50:

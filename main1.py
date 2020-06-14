@@ -8,7 +8,7 @@ Created on Wed Jun 10 11:17:23 2020
 
 from Capsule import CapsuleLayer, squash, Length, Mask, margin_loss
 
-from prepareDataset import load_Kf_data, load_data, load_EC_data
+from prepareDataset import load_Kf_data, load_data, load_SL_EC_data, load_ML_SL_EC_data
 from resnet import resnet_v1
 
 import tensorflow as tf
@@ -20,7 +20,6 @@ import numpy as np
 from sklearn.metrics import accuracy_score, matthews_corrcoef, confusion_matrix
 from sklearn.metrics import f1_score,roc_auc_score,recall_score,precision_score
 from sklearn.model_selection import train_test_split
-
 
 def PrimaryCap(inputs, dim_vector, n_channels, kernel_size, strides, padding):
     output = layers.Conv2D(filters=dim_vector*n_channels, kernel_size=kernel_size,
@@ -95,6 +94,7 @@ def TrainAndTest(model, data, lr, batch_size, epochs):
               batch_size=batch_size,
               epochs=epochs,
               validation_data=[x_test,y_test],
+              class_weight=[2.6,1,1,6,8,6,15],
               callbacks=[lr_decay])
     y_pred = model.predict(x_test, batch_size=batch_size)
     
@@ -182,12 +182,13 @@ def CnnNet(input_shape, n_class):
     
     return models.Model(x, out)   
 
-def classify_ecsl_cross():
+def classify_ecsl(random_state=143):
     row, col, channels = 21, 21, 1
     kfold = 5
     num_classes = 7
     metricsFile = 'result.txt'
-    (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(kfold=5, random_state=143)
+    x,y = load_SL_EC_data()
+    (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x, y, kfold=5, random_state=random_state)
     y_pred = np.zeros((0,7))
     y_true = np.zeros((0,7))
     
@@ -206,7 +207,7 @@ def classify_ecsl_cross():
         y_pred = np.concatenate((y_pred, pred))
         y_true = np.concatenate((y_true,y_test))
         
-        noteInfo = "{}/{} cross training-testing:".format(k, kfold)
+        noteInfo = "{}/{} cross-validate predicting EC singal label:".format(k, kfold)
         writeMetrics(metricsFile, y_test, pred, noteInfo)
     
     noteInfo = "\nTotal validation result:"
@@ -250,6 +251,70 @@ def classify_ec(lr=0.001):
             fw.write(str(cm[i,0]) + '\t' + str(cm[i,1]) + '\n')
         fw.write("ACC:%f"%accuracy_score(y_test, y_pred))
         fw.write("MCC:%f"%matthews_corrcoef(y_test, y_pred))
+        
+def classify_ML_SL_ec(lr=0.001):
+    row, col, channels = 21, 21, 1
+    num_classes = 2
+    metricsFile = 'result.txt'
+    kfold = 5
+    x, y = load_ML_SL_EC_data()
+    #x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=59)
+    (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x, y, kfold=kfold, random_state=42)
+    y_pred = np.zeros((0,num_classes))
+    y_true = np.zeros((0,num_classes))
+    
+    for k in range(kfold):
+        x_train = X_train_Kf[k].reshape((-1, row, col, channels))
+        x_test = X_test_Kf[k].reshape((-1, row, col, channels))
+        y_train = to_categorical(y_train_Kf[k], num_classes=num_classes)
+        y_test = to_categorical(y_test_Kf[k], num_classes=num_classes)
+        
+        tf.keras.backend.clear_session()
+        #model = CapsNet(input_shape=[row,col,channels], num_classes=num_classes, num_routing=5)
+        model = resnet_v1(input_shape=(row, col, channels), depth=20, num_classes=num_classes)
+        model.summary()
+    
+        model.compile(optimizer=optimizers.Adam(learning_rate=lr),
+                 loss='categorical_crossentropy',
+                 metrics=['accuracy'])
+        lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
+    
+        model.fit(x_train, y_train,
+              batch_size=50,
+              epochs=20,
+              validation_split=0.1,
+              callbacks=[lr_decay])
+    
+        pred = model.predict(x_test, batch_size=50)
+    
+        noteInfo = "\n\n{}/{} cross-validation predict Multi-label EC and Single-label EC:\n".format(k, kfold)
+        y_t = np.argmax(y_test, 1)
+        y_p = np.argmax(pred, 1)
+        cm = confusion_matrix(y_t, y_p)
+        with open(metricsFile, 'a') as fw:
+            fw.write(noteInfo)
+            for i in range(2):
+                fw.write(str(cm[i,0]) + '\t' + str(cm[i,1]) + '\n')
+            fw.write("ACC:%f\n"%accuracy_score(y_t, y_p))
+            fw.write("MCC:%f\n"%matthews_corrcoef(y_t, y_p))
+        
+
+        y_pred = np.concatenate((y_pred, pred))
+        y_true = np.concatenate((y_true,y_test))
+        
+    noteInfo = "\nTotal cross-validation:\n"
+    y_T = np.argmax(y_true, 1)
+    y_P = np.argmax(y_pred, 1)
+    cm = confusion_matrix(y_T, y_P)
+    
+    with open(metricsFile, 'a') as fw:
+        fw.write(noteInfo)
+        for i in range(2):
+            fw.write(str(cm[i,0]) + '\t' + str(cm[i,1]) + '\n')
+        fw.write("ACC:%f\n"%accuracy_score(y_T, y_P))
+        fw.write("MCC:%f\n"%matthews_corrcoef(y_T, y_P))
+    
+    
+            
 if __name__ == "__main__":
-    #classify_ec(0.001)
-    x, y = load_EC_data()
+    classify_ecsl()

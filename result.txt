@@ -1,21 +1,154 @@
-0/5 cross training-testing:
-404	817	287	51	52	148	16	
-560	2955	800	138	134	310	87	
-429	1655	1116	96	78	197	43	
-139	432	153	63	28	74	19	
-82	321	134	34	57	60	9	
-154	434	139	35	30	384	14	
-46	182	50	8	7	24	131	
-ACC: 0.375294 0/5 cross training-testing:
-0	1775	0	0	0	0	0	
-0	4984	0	0	0	0	0	
-0	3614	0	0	0	0	0	
-0	908	0	0	0	0	0	
-0	697	0	0	0	0	0	
-0	1190	0	0	0	0	0	
-0	448	0	0	0	0	0	
-ACC: 0.366040 
 predict EC and Not EC:
 5579	1
 0	5584
 ACC:0.999910MCC:0.999821
+
+0/5 cross-validation predict Multi-label EC and Single-label EC:
+5582	0
+0	1376
+ACC:1.000000MCC:1.000000
+
+1/5 cross-validation predict Multi-label EC and Single-label EC:
+5582	0
+0	1376
+ACC:1.000000MCC:1.000000
+
+2/5 cross-validation predict Multi-label EC and Single-label EC:
+5581	0
+0	1377
+ACC:1.000000MCC:1.000000
+
+3/5 cross-validation predict Multi-label EC and Single-label EC:
+5581	0
+1	1376
+ACC:0.999856MCC:0.999547
+
+4/5 cross-validation predict Multi-label EC and Single-label EC:
+5581	0
+0	1377
+ACC:1.000000MCC:1.000000
+Total cross-validation:
+27907	0
+1	6882
+ACC:0.999971MCC:0.999909
+
+
+0/5 cross-validation predict Multi-label EC and Single-label EC:
+5582	0
+0	631
+ACC:1.000000MCC:1.000000
+
+1/5 cross-validation predict Multi-label EC and Single-label EC:
+5582	0
+1	630
+ACC:0.999839MCC:0.999118
+
+2/5 cross-validation predict Multi-label EC and Single-label EC:
+5581	0
+0	632
+ACC:1.000000MCC:1.000000
+
+3/5 cross-validation predict Multi-label EC and Single-label EC:
+5581	0
+0	631
+ACC:1.000000MCC:1.000000
+
+4/5 cross-validation predict Multi-label EC and Single-label EC:
+5581	0
+0	631
+ACC:1.000000MCC:1.000000
+Total cross-validation:
+27907	0
+1	3155
+ACC:0.999968MCC:0.999824
+
+# 随机选5000个单标记酶蛋白序列，加上1914个多标记酶蛋白序列（序列间相似度<60%)
+0/5 cross-validation predict Multi-label EC and Single-label EC:
+1000	0
+0	383
+ACC:1.000000
+MCC:1.000000
+
+
+1/5 cross-validation predict Multi-label EC and Single-label EC:
+1000	0
+0	383
+ACC:1.000000
+MCC:1.000000
+
+
+2/5 cross-validation predict Multi-label EC and Single-label EC:
+1000	0
+0	383
+ACC:1.000000
+MCC:1.000000
+
+
+3/5 cross-validation predict Multi-label EC and Single-label EC:
+1000	0
+0	383
+ACC:1.000000
+MCC:1.000000
+
+
+4/5 cross-validation predict Multi-label EC and Single-label EC:
+1000	0
+0	382
+ACC:1.000000
+MCC:1.000000
+
+Total cross-validation:
+5000	0
+0	1914
+ACC:1.000000
+MCC:1.000000
+0/5 cross-validate predicting EC singal label:
+177	272	269	27	8	27	20	
+202	982	676	54	21	64	46	
+166	637	778	50	11	43	24	
+46	122	121	8	3	10	9	
+34	83	95	11	4	5	5	
+34	142	104	15	1	33	5	
+8	54	25	5	0	2	44	
+ACC: 0.362952 1/5 cross-validate predicting EC singal label:
+207	212	283	49	4	43	2	
+305	738	801	71	18	102	9	
+221	497	835	66	13	71	6	
+59	89	130	14	7	20	1	
+33	67	92	23	5	15	1	
+58	102	100	12	3	60	0	
+7	58	36	4	0	5	28	
+ACC: 0.338051 2/5 cross-validate predicting EC singal label:
+136	278	177	106	18	69	16	
+208	905	501	214	13	156	47	
+180	605	603	180	17	105	19	
+33	109	85	60	5	26	1	
+32	89	51	35	4	22	4	
+42	103	70	39	5	73	3	
+12	39	26	12	0	12	36	
+ACC: 0.325569 3/5 cross-validate predicting EC singal label:
+136	263	247	89	26	32	7	
+198	885	618	226	38	58	21	
+138	594	723	176	24	40	14	
+33	105	123	42	3	9	4	
+22	75	88	27	15	8	2	
+38	122	89	34	13	37	2	
+14	49	22	14	3	8	27	
+ACC: 0.334170 4/5 cross-validate predicting EC singal label:
+238	279	163	15	42	22	40	
+358	918	472	30	108	53	106	
+290	593	574	43	92	44	73	
+68	112	73	17	26	9	14	
+56	98	46	6	17	7	7	
+64	121	70	8	14	42	16	
+15	36	26	2	3	4	51	
+ACC: 0.332736 
+Total validation result:
+894	1304	1139	286	98	193	85	
+1271	4428	3068	595	198	433	229	
+995	2926	3513	515	157	303	136	
+239	537	532	141	44	74	29	
+177	412	372	102	45	57	19	
+236	590	433	108	36	245	26	
+56	236	135	37	6	31	186	
+ACC: 0.338696 
