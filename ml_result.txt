@@ -1,0 +1,6 @@
+
+hamming loass = 0.0999149042153546
+subset accuracy = 0.6424524190033416
+
+hamming loass = 0.10900562462381437
+subset accuracy = 0.6115066104896121

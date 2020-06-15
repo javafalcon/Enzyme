@@ -7,7 +7,7 @@ Created on Mon Jun 15 14:20:26 2020
 
 from SeqFormulate import DAA_chaosGraph
 import numpy as np
-from prepareData import readMLEnzyme
+from prepareDataset import readMLEnzyme
 
 import tensorflow as tf
 from tensorflow.keras import layers
@@ -18,7 +18,7 @@ from tensorflow.keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 from tensorflow.keras.callbacks import ModelCheckpoint
 
 from sklearn.model_selection import KFold
-from sklearn.metrics import hamming_loss, accuracy_score
+
 def load_mlec():
     mlec_seqs, mlec_labels = readMLEnzyme()
     seqs, labels = [], []
@@ -29,6 +29,24 @@ def load_mlec():
     y = np.array(labels)
     return x, y
 
+def subsetAcc(y_true, y_pred):
+    account = 0
+    n = y_true.shape[0]
+    for i in range(n):
+        for j in range(7):
+            if y_true[i,j] != y_pred[i,j]:
+                account += 1
+                break
+    return (n-account)/n
+
+def hamming_loss(y_true, y_pred):
+    account = 0
+    n = y_true.shape[0]
+    for i in range(n):
+        for j in range(7):
+            if y_true[i,j] != y_pred[i,j]:
+                account += 1
+    return account/(n*7)
 
 def lr_schedule(epoch):
     lr = 1e-3
@@ -135,8 +153,9 @@ def resnet_v1(input_shape, depth, num_classes=2):
     return model
 
 x, y = load_mlec()
+x = x.reshape((-1,21,21,1))
 lr = 0.001
-k = 1
+k = 0
 y_pred = np.zeros((0, 7))
 y_true = np.zeros((0, 7))
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
@@ -145,11 +164,12 @@ for train_index, test_index in kf.split(x,y):
     y_train, y_test = y[train_index], y[test_index]
     
     tf.keras.backend.clear_session()
-    model = resnet_v1(input_shape=(21, 21, 1), depth=20, num_classes=2)
+    model = resnet_v1(input_shape=(21, 21, 1), depth=20, num_classes=7)
     model.summary()
     modelfile = './model/mlec/weights-mlec-{}.h5'.format(k)
+   
     model.compile(optimizer=Adam(learning_rate=lr),
-         loss='categorical_crossentropy',
+         loss='binary_crossentropy',
          metrics=['accuracy'])
 
     lr_decay = LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
@@ -164,12 +184,15 @@ for train_index, test_index in kf.split(x,y):
               validation_data=[x_test, y_test],
               callbacks=[checkpoint, lr_decay])
     
+    model.load_weights(modelfile)
     pred = model.predict(x_test)
-    
+    k += 1
     y_pred = np.concatenate((y_pred, pred))
     y_true = np.concatenate((y_true,y_test))
-    
+
+c = np.sum(y_true,axis=0)/6883
+y_p = (y_pred>c).astype(float)
 with open('ml_result.txt', 'a') as fw:
-    fw.write("hamming loass = {}\n".format(hamming_loss(y_true, y_pred)))
-    fw.write("subset accuracy = {}\n".format( accuracy_score(y_true, y_pred)))
+    fw.write("hamming loass = {}\n".format(hamming_loss(y_true, y_p)))
+    fw.write("subset accuracy = {}\n".format( subsetAcc(y_true, y_p)))
     
