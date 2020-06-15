@@ -72,13 +72,12 @@ def readSLEnzyme(files):
     prot_labels = {}
 
     for i in range(7):
-        file = os.path.join('data', files[i])
-        for seq_record in SeqIO.parse(file, 'fasta'):
+         for seq_record in SeqIO.parse(files[i], 'fasta'):
             if len(str(seq_record.seq)) < 50:
                 continue
             seqid = seq_record.id
-            seqid = seqid.split('|')
-            seqid = seqid[1]
+            seqid = seqid.split(' ')
+            seqid = seqid[0]
 
             if seqid in prot_seqs.keys():
                 # The protein has multi-lables, so remove it from protein dict
