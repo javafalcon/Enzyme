@@ -14,6 +14,11 @@ from SeqFormulate import DAA_chaosGraph
 from sklearn.model_selection import StratifiedKFold
 from sklearn.utils import shuffle
 
+nr40 = ['data/slec_{}_40.fasta'.format(i) for i in range(1,8)]
+nr60 = ['data/slec_{}_60.fasta'.format(i) for i in range(1,8)]
+nr80 = ['data/slec_{}_80.fasta'.format(i) for i in range(1,8)]
+nr100 = ['data/slec_{}.fasta'.format(i) for i in range(1,8)]
+
 def readAllEnzymeSeqsML():
     files=['ec_1.fasta', 'ec_2.fasta', 'ec_3.fasta', 'ec_4.fasta', 'ec_5.fasta',
            'ec_6.fasta', 'ec_7.fasta']
@@ -63,10 +68,6 @@ def writeSLEC(data, target):
 # read nr40 data as single label
 # Proteins who have multi lables were removed
 def readSLEnzyme(files):
-    '''files=['ec_1_40.fasta', 'ec_2_40.fasta', 'ec_3_40.fasta', 'ec_4_40.fasta',
-           'ec_5_40.fasta', 'ec_6_40.fasta', 'ec_7_40.fasta']'''
-    '''files=['ec_1.fasta', 'ec_2.fasta', 'ec_3.fasta', 'ec_4.fasta', 'ec_5.fasta',
-           'ec_6.fasta', 'ec_7.fasta']'''
     prot_seqs = {}
     prot_labels = {}
 
@@ -139,9 +140,7 @@ def getNotEnzyme(n_samples, random_state=None):
             break
     return prot_seqs
 
-def load_SL_EC_data():
-    files=['ec_1_40.fasta', 'ec_2_40.fasta', 'ec_3_40.fasta', 'ec_4_40.fasta',
-           'ec_5_40.fasta', 'ec_6_40.fasta', 'ec_7_60.fasta']
+def load_SL_EC_data(files):
     prot_seqs, prot_labels = readSLEnzyme(files)
     seqs, labels = [], []
     for key in prot_seqs.keys():
@@ -193,9 +192,16 @@ def load_Kf_data(X, y, kfold=5, random_state=None):
         
     return (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf)
 
+def statInfo():
+    for i in range(7):
+        print("{}: nr40: {}".format(i, len(list(SeqIO.parse(nr40[i], 'fasta')))))
+        print("{}: nr60: {}".format(i, len(list(SeqIO.parse(nr60[i], 'fasta')))))
+        print("{}: nr80: {}".format(i, len(list(SeqIO.parse(nr80[i], 'fasta')))))
+        print("{}: nr100: {}".format(i, len(list(SeqIO.parse(nr100[i], 'fasta')))))
 if __name__ == "__main__": 
-    data, target = readAllEnzymeSeqsML()
-    writeSLEC(data, target)
+    statInfo()
+    #data, target = readAllEnzymeSeqsML()
+    #writeSLEC(data, target)
     #x,y = load_SL_EC_data()
     '''MLECseqs, MLEClabels = readMLEnzyme()
     seq_records = []

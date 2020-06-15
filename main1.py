@@ -61,7 +61,7 @@ def CapsTrainAndTest(model, data, modelfile, lr, lam_recon, batch_size, epochs):
     #log = callbacks.CSVLogger('./result/PDNA-543/log.csv')
     #tb = callbacks.TensorBoard(log_dir='./result/PDNA-543/tensorboard-logs',
     #                           batch_size=batch_size, histogram_freq=1)
-    checkpoint = callbacks.ModelCheckpoint(modefile,
+    checkpoint = callbacks.ModelCheckpoint(modelfile,
                                            monitor='val_loss',
                                            save_best_only=True, 
                                            save_weights_only=True, 
