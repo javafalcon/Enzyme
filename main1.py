@@ -49,7 +49,7 @@ def CapsNet(input_shape, num_classes, num_routing):
     
     return models.Model([x,y], [out_caps, x_recon])
 
-def CapsTrainAndTest(model, data, lr, lam_recon, batch_size, epochs):
+def CapsTrainAndTest(model, data, modelfile, lr, lam_recon, batch_size, epochs):
     (x_train, y_train),(x_test, y_test) = data
     
     model.compile(optimizer=optimizers.Adam(learning_rate=lr),
@@ -61,21 +61,26 @@ def CapsTrainAndTest(model, data, lr, lam_recon, batch_size, epochs):
     #log = callbacks.CSVLogger('./result/PDNA-543/log.csv')
     #tb = callbacks.TensorBoard(log_dir='./result/PDNA-543/tensorboard-logs',
     #                           batch_size=batch_size, histogram_freq=1)
-    #checkpoint = callbacks.ModelCheckpoint('./result/PDNA-543/weights-{epoch:02d}.h5',
-    #                                       save_best_only=True, save_weights_only=True, verbose=1)
+    checkpoint = callbacks.ModelCheckpoint(modefile,
+                                           monitor='val_loss',
+                                           save_best_only=True, 
+                                           save_weights_only=True, 
+                                           verbose=1)
     lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
     
     model.fit([x_train, y_train], [y_train, x_train],
               batch_size=batch_size,
               epochs=epochs,
               validation_data=[[x_test,y_test],[y_test,x_test]],
-              callbacks=[lr_decay])
+              callbacks=[checkpoint, lr_decay])
+    
+    model.load_weights(modelfile)
     y_pred, x_recon = model.predict([x_test, y_test], batch_size=batch_size)
     
     return y_pred
 
 
-def TrainAndTest(model, data, lr, batch_size, epochs):
+def TrainAndTest(model, data, modelfile, class_weight, lr, batch_size, epochs):
     (x_train, y_train),(x_test, y_test) = data
     
     model.compile(optimizer=optimizers.Adam(learning_rate=lr),
@@ -86,16 +91,21 @@ def TrainAndTest(model, data, lr, batch_size, epochs):
     #log = callbacks.CSVLogger('./result/PDNA-543/log.csv')
     #tb = callbacks.TensorBoard(log_dir='./result/PDNA-543/tensorboard-logs',
     #                           batch_size=batch_size, histogram_freq=1)
-    #checkpoint = callbacks.ModelCheckpoint('./result/PDNA-543/weights-{epoch:02d}.h5',
-    #                                       save_best_only=True, save_weights_only=True, verbose=1)
+    checkpoint = callbacks.ModelCheckpoint(modelfile, monitor='val_loss',
+                                           save_best_only=True, 
+                                           save_weights_only=True, 
+                                           verbose=1)
     lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
     
     model.fit(x_train, y_train,
               batch_size=batch_size,
               epochs=epochs,
               validation_data=[x_test,y_test],
-              class_weight=[2.6,1,1,6,8,6,15],
-              callbacks=[lr_decay])
+              class_weight=class_weight,
+              callbacks=[checkpoint, lr_decay])
+    
+    model.load_weights(modelfile)
+    
     y_pred = model.predict(x_test, batch_size=batch_size)
     
     return y_pred
@@ -182,15 +192,17 @@ def CnnNet(input_shape, n_class):
     
     return models.Model(x, out)   
 
-def classify_ecsl(random_state=143):
+def classify_slec(random_state=143):
     row, col, channels = 21, 21, 1
     kfold = 5
     num_classes = 7
     metricsFile = 'result.txt'
     x,y = load_SL_EC_data()
     (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x, y, kfold=5, random_state=random_state)
-    y_pred = np.zeros((0,7))
-    y_true = np.zeros((0,7))
+    y_pred = np.zeros((0, num_classes))
+    y_true = np.zeros((0, num_classes))
+    
+    class_weight = [3,1,1,2,3,1.5,4.5]
     
     for k in range(kfold):
         train_X = X_train_Kf[k].reshape((-1, row, col, channels))
@@ -198,12 +210,14 @@ def classify_ecsl(random_state=143):
         y_train = to_categorical(y_train_Kf[k], num_classes=num_classes)
         y_test = to_categorical(y_test_Kf[k], num_classes=num_classes)
         
+        tf.keras.backend.clear_session()
         #model = CapsNet(input_shape=[row,col,channels], num_classes=num_classes, num_routing=5)
         model = resnet_v1(input_shape=(row, col, channels), depth=20, num_classes=num_classes)
         model.summary()
-    
+        modelfile = './model/slec/weights-slec-{}.h5'.format(k)
         pred = TrainAndTest(model, ((train_X, y_train), (test_X, y_test)),
-                     lr=0.001, batch_size=50, epochs=20)
+                            modelfile, class_weight,
+                            lr=0.001, batch_size=50, epochs=10)
         y_pred = np.concatenate((y_pred, pred))
         y_true = np.concatenate((y_true,y_test))
         
@@ -213,6 +227,62 @@ def classify_ecsl(random_state=143):
     noteInfo = "\nTotal validation result:"
     writeMetrics(metricsFile, y_true, y_pred, noteInfo)    
     
+def classify_slec_bi(lr=0.001, random_state=143):
+    row, col, channels = 21, 21, 1
+    kfold = 5
+    num_classes = 7
+    metricsFile = 'result.txt'
+    x,y = load_SL_EC_data()
+    (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x, y, kfold=5, random_state=random_state)
+    y_pred = np.zeros((0, num_classes))
+    y_true = np.zeros((0, num_classes))
+       
+    for k in range(kfold):
+        train_X = X_train_Kf[k].reshape((-1, row, col, channels))
+        test_X = X_test_Kf[k].reshape((-1, row, col, channels))
+        y_train = to_categorical(y_train_Kf[k], num_classes=num_classes)
+        y_test = to_categorical(y_test_Kf[k], num_classes=num_classes)
+        y_p = np.zeros(shape=y_test.shape)       
+        for j in range(num_classes):
+            train_y = to_categorical(y_train[:,j], 2)
+            test_y = to_categorical(y_test[:,j], 2)
+            
+            tf.keras.backend.clear_session()
+            #model = CapsNet(input_shape=[row,col,channels], num_classes=num_classes, num_routing=5)
+            model = resnet_v1(input_shape=(row, col, channels), depth=20, num_classes=2)
+            model.summary()
+            modelfile = './model/slec/weights-slec-{}_{}.h5'.format(k,j)
+            model.compile(optimizer=optimizers.Adam(learning_rate=lr),
+                 loss='categorical_crossentropy',
+                 metrics=['accuracy'])
+    
+            lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
+    
+            checkpoint = callbacks.ModelCheckpoint(modelfile, monitor='val_loss',
+                                           save_best_only=True, 
+                                           save_weights_only=True, 
+                                           verbose=1)
+            model.fit(train_X, train_y,
+                      batch_size=50,
+                      epochs=10,
+                      validation_split=0.2,
+                      callbacks=[checkpoint, lr_decay])
+    
+            model.load_weights(modelfile)
+            pred = model.predict(test_X, batch_size=50)
+            y_p[:, j] = pred[:,1]
+            
+        y_pred = np.concatenate((y_pred, y_p))
+        y_true = np.concatenate((y_true,y_test))
+        
+        noteInfo = "{}/{} cross-validate predicting EC singal label:".format(k, kfold)
+        writeMetrics(metricsFile, y_test, pred, noteInfo)
+    
+    noteInfo = "\nTotal validation result:"
+    writeMetrics(metricsFile, y_true, y_pred, noteInfo)     
+    
+    return y_pred
+
 def classify_ec(lr=0.001):
     row, col, channels = 21, 21, 1
     num_classes = 2
@@ -231,14 +301,20 @@ def classify_ec(lr=0.001):
     model.compile(optimizer=optimizers.Adam(learning_rate=lr),
                  loss='categorical_crossentropy',
                  metrics=['accuracy'])
-    lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
     
+    lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
+    modelfile = './model/ec/weights-ec.h5'
+    checkpoint = callbacks.ModelCheckpoint(modelfile, monitor='val_loss',
+                                           save_best_only=True, 
+                                           save_weights_only=True, 
+                                           verbose=1)
     model.fit(x_train, y_train,
               batch_size=50,
-              epochs=20,
+              epochs=10,
               validation_split=0.1,
-              callbacks=[lr_decay])
+              callbacks=[checkpoint, lr_decay])
     
+    model.load_weights(modelfile)
     pred = model.predict(x_test, batch_size=50)
     
     noteInfo = "\npredict EC and Not EC:"
@@ -249,8 +325,8 @@ def classify_ec(lr=0.001):
         fw.write(noteInfo + "\n")
         for i in range(2):
             fw.write(str(cm[i,0]) + '\t' + str(cm[i,1]) + '\n')
-        fw.write("ACC:%f"%accuracy_score(y_test, y_pred))
-        fw.write("MCC:%f"%matthews_corrcoef(y_test, y_pred))
+        fw.write("ACC:%f\n"%accuracy_score(y_test, y_pred))
+        fw.write("MCC:%f\n"%matthews_corrcoef(y_test, y_pred))
         
 def classify_ML_SL_ec(lr=0.001):
     row, col, channels = 21, 21, 1
@@ -277,8 +353,9 @@ def classify_ML_SL_ec(lr=0.001):
         model.compile(optimizer=optimizers.Adam(learning_rate=lr),
                  loss='categorical_crossentropy',
                  metrics=['accuracy'])
+        
         lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
-    
+        
         model.fit(x_train, y_train,
               batch_size=50,
               epochs=20,
@@ -317,4 +394,4 @@ def classify_ML_SL_ec(lr=0.001):
     
             
 if __name__ == "__main__":
-    classify_ecsl()
+    classify_slec_bi()
