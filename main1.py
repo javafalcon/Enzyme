@@ -197,7 +197,8 @@ def classify_slec(random_state=143):
     kfold = 5
     num_classes = 7
     metricsFile = 'result.txt'
-    x,y = load_SL_EC_data()
+    files=['data/slec_{}_40.fasta'.format(i) for i in range(1,8)]    
+    x,y = load_SL_EC_data(files)
     (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x, y, kfold=5, random_state=random_state)
     y_pred = np.zeros((0, num_classes))
     y_true = np.zeros((0, num_classes))
@@ -232,7 +233,11 @@ def classify_slec_bi(lr=0.001, random_state=143):
     kfold = 5
     num_classes = 7
     metricsFile = 'result.txt'
-    x,y = load_SL_EC_data()
+    files1=['data/slec_{}_40.fasta'.format(i) for i in range(1,4)]
+    files2 = ['data/slec_{}_60.fasta'.format(i) for i in range(4,8)]
+    files = files1 + files2
+    
+    x,y = load_SL_EC_data(files)
     (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x, y, kfold=5, random_state=random_state)
     y_pred = np.zeros((0, num_classes))
     y_true = np.zeros((0, num_classes))
@@ -265,7 +270,7 @@ def classify_slec_bi(lr=0.001, random_state=143):
             model.fit(train_X, train_y,
                       batch_size=50,
                       epochs=10,
-                      validation_split=0.2,
+                      validation_data=[test_X, test_y],
                       callbacks=[checkpoint, lr_decay])
     
             model.load_weights(modelfile)
@@ -276,7 +281,7 @@ def classify_slec_bi(lr=0.001, random_state=143):
         y_true = np.concatenate((y_true,y_test))
         
         noteInfo = "{}/{} cross-validate predicting EC singal label:".format(k, kfold)
-        writeMetrics(metricsFile, y_test, pred, noteInfo)
+        writeMetrics(metricsFile, y_test, y_p, noteInfo)
     
     noteInfo = "\nTotal validation result:"
     writeMetrics(metricsFile, y_true, y_pred, noteInfo)     
