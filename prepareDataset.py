@@ -191,6 +191,25 @@ def load_Kf_data(X, y, kfold=5, random_state=None):
         
     return (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf)
 
+def load_Kf_data_with_weight(X, y, weight, kfold=5, random_state=None):
+    X_train_Kf, y_train_Kf = [], []
+    X_test_Kf, y_test_Kf = [], []
+    weight_Kf = []
+    skf = StratifiedKFold(n_splits=kfold, random_state=random_state, shuffle=True)
+    for train_index, test_index in skf.split(X, y, weight):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        weight_train = weight[train_index]
+        X_train_Kf.append(X_train)
+        y_train_Kf.append(y_train)
+        
+        weight_Kf.append(weight_train)
+        
+        X_test_Kf.append(X_test)
+        y_test_Kf.append(y_test)
+        
+    return (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf), weight_Kf
+
 def statInfo():
     for i in range(7):
         print("{}: nr40: {}".format(i, len(list(SeqIO.parse(nr40[i], 'fasta')))))
@@ -198,7 +217,7 @@ def statInfo():
         print("{}: nr80: {}".format(i, len(list(SeqIO.parse(nr80[i], 'fasta')))))
         print("{}: nr100: {}".format(i, len(list(SeqIO.parse(nr100[i], 'fasta')))))
 if __name__ == "__main__": 
-    statInfo()
+    #statInfo()
     #data, target = readAllEnzymeSeqsML()
     #writeSLEC(data, target)
     #x,y = load_SL_EC_data()

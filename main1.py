@@ -8,7 +8,7 @@ Created on Wed Jun 10 11:17:23 2020
 
 from Capsule import CapsuleLayer, squash, Length, Mask, margin_loss
 
-from prepareDataset import load_Kf_data, load_data, load_SL_EC_data, load_ML_SL_EC_data
+from prepareDataset import load_Kf_data_with_weight, load_data, load_SL_EC_data, load_ML_SL_EC_data
 from resnet import resnet_v1
 
 import tensorflow as tf
@@ -80,7 +80,7 @@ def CapsTrainAndTest(model, data, modelfile, lr, lam_recon, batch_size, epochs):
     return y_pred
 
 
-def TrainAndTest(model, data, modelfile, class_weight, lr, batch_size, epochs):
+def TrainAndTest(model, data, modelfile, sample_weight, lr, batch_size, epochs):
     (x_train, y_train),(x_test, y_test) = data
     
     model.compile(optimizer=optimizers.Adam(learning_rate=lr),
@@ -101,7 +101,7 @@ def TrainAndTest(model, data, modelfile, class_weight, lr, batch_size, epochs):
               batch_size=batch_size,
               epochs=epochs,
               validation_data=[x_test,y_test],
-              class_weight=class_weight,
+              sample_weight=sample_weight,
               callbacks=[checkpoint, lr_decay])
     
     model.load_weights(modelfile)
@@ -199,12 +199,20 @@ def classify_slec(random_state=143):
     metricsFile = 'result.txt'
     files=['data/slec_{}_40.fasta'.format(i) for i in range(1,8)]    
     x,y = load_SL_EC_data(files)
-    (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x, y, kfold=5, random_state=random_state)
+    sample_weight = np.zeros((27791,))
+    w = [3995,10219,8477,1559,1177,1674,690]
+    sw = [0 for i in range(8)]
+    for i in range(1,8):
+        sw[i] = sw[i-1] + w[i-1]
+    wt = [2.6, 1, 1.2, 6.5, 8.7, 6.1, 14.8]
+    for i in range(1,8):
+        sample_weight[sw[i-1]:sw[i]] = wt[i-1]
+    (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf), weight_Kf = load_Kf_data_with_weight(x, y, sample_weight, kfold=5, random_state=random_state)
     y_pred = np.zeros((0, num_classes))
     y_true = np.zeros((0, num_classes))
     
-    class_weight = [3,1,1,2,3,1.5,4.5]
-    
+    #class_weight = [3,1,1,2,3,1.5,4.5]
+    #samples_weight = [2.6, 1, 1.2, 6.5, 8.7, 6.1, 14.8]#[3995,10219,8477,1559,1177,1674,690]
     for k in range(kfold):
         train_X = X_train_Kf[k].reshape((-1, row, col, channels))
         test_X = X_test_Kf[k].reshape((-1, row, col, channels))
@@ -217,12 +225,12 @@ def classify_slec(random_state=143):
         model.summary()
         modelfile = './model/slec/weights-slec-{}.h5'.format(k)
         pred = TrainAndTest(model, ((train_X, y_train), (test_X, y_test)),
-                            modelfile, class_weight,
+                            modelfile, weight_Kf[k],
                             lr=0.001, batch_size=50, epochs=10)
         y_pred = np.concatenate((y_pred, pred))
         y_true = np.concatenate((y_true,y_test))
         
-        noteInfo = "{}/{} cross-validate predicting EC singal label:".format(k, kfold)
+        noteInfo = "\n{}/{} cross-validate predicting EC singal label:".format(k, kfold)
         writeMetrics(metricsFile, y_test, pred, noteInfo)
     
     noteInfo = "\nTotal validation result:"
@@ -399,4 +407,4 @@ def classify_ML_SL_ec(lr=0.001):
     
             
 if __name__ == "__main__":
-    classify_slec_bi()
+    classify_slec()
