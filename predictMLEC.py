@@ -143,9 +143,14 @@ def resnet_v1(input_shape, depth, num_classes=2):
         
     # Add classifier on top.
     # v1 does not use BN after last shortcut connection-ReLU
-    x = layers.GlobalAveragePooling2D()(x)
+    ax = layers.GlobalAveragePooling2D()(x)
     #x = layers.AveragePooling2D()(x)
-    y = layers.Flatten()(x)
+    
+    ax = layers.Dense(num_filters//8, activation='relu')(ax)
+    ax = layers.Dense(num_filters//2, activation='softmax')(ax)
+    ax = layers.Reshape((1,1,num_filters//2))(ax)
+    ax = layers.Multiply()([ax, x])
+    y = layers.Flatten()(ax)
     outputs = layers.Dense(num_classes, activation='sigmoid',
                            kernel_initializer='he_normal')(y)
     # Instantiate model
@@ -179,8 +184,8 @@ for train_index, test_index in kf.split(x,y):
                                    save_weights_only=True, 
                                    verbose=1)
     model.fit(x_train, y_train,
-              batch_size=50,
-              epochs=10,
+              batch_size=32,
+              epochs=50,
               validation_data=[x_test, y_test],
               callbacks=[checkpoint, lr_decay])
     
