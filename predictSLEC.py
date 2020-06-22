@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun 15 14:20:26 2020
+Created on Fri Jun 19 09:12:35 2020
 
-@author: Administrator
+@author: lwzjc
 """
 
 from SeqFormulate import DAA_chaosGraph
 import numpy as np
 import re
-from prepareDataset import readMLEnzyme
-from Bio import SeqIO
+from prepareDataset import readSLEnzyme, load_Kf_data
+
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.regularizers import l2
@@ -17,8 +17,14 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.utils import to_categorical
+
+from imblearn.over_sampling import SMOTE
 
 from sklearn.model_selection import KFold
+from sklearn.metrics import accuracy_score, matthews_corrcoef, confusion_matrix
+from sklearn.metrics import f1_score,roc_auc_score,recall_score,precision_score
+
 def daa(seqs):
     AminoAcids = 'ARNDCQEGHILKMFPSTWYVX'
     x = []
@@ -32,65 +38,6 @@ def daa(seqs):
         x.append(t/np.sum(t))
     return np.array(x)
 
-def load_mlec():
-    mlec_seqs, mlec_labels = readMLEnzyme()
-    seqs, labels = [], []
-    
-    for key in mlec_seqs.keys():
-        seqs.append(mlec_seqs[key])
-        labels.append(mlec_labels[key])
-        
-    x = np.ndarray(shape=(len(seqs), 21, 21, 2))    
-    x[:,:,:,0] = DAA_chaosGraph(seqs)
-    x[:,:,:,1] = daa(seqs)
-    y = np.array(labels)
-    return x, y
-
-def load_mlec_80():
-    mlec_seqs, mlec_labels = readMLEnzyme()
-    seqs, labels = [], []
-    
-    for seq_record in SeqIO.parse('data/mlec_80.fasta', 'fasta'):
-        s = seq_record.id
-        pid = s.split(' ')
-        protId = pid[0]
-        seqs.append(mlec_seqs[protId])
-        labels.append(mlec_labels[protId])
-    
-    x = np.ndarray(shape=(len(seqs), 21, 21, 2))    
-    x[:,:,:,0] = DAA_chaosGraph(seqs)
-    x[:,:,:,1] = daa(seqs)
-    y = np.array(labels)
-    return x, y
-        
-def load_mled_v2():
-    mlec_seqs, mlec_labels = readMLEnzyme()
-    seqs, labels = [], []
-    for key in mlec_seqs.keys():
-        seqs.append(mlec_seqs[key])
-        labels.append(mlec_labels[key])
-    x = DAA_chaosGraph(seqs)
-    y = np.array(labels)
-    return x, y
-
-def subsetAcc(y_true, y_pred):
-    account = 0
-    n = y_true.shape[0]
-    for i in range(n):
-        for j in range(7):
-            if y_true[i,j] != y_pred[i,j]:
-                account += 1
-                break
-    return (n-account)/n
-
-def hamming_loss(y_true, y_pred):
-    account = 0
-    n = y_true.shape[0]
-    for i in range(n):
-        for j in range(7):
-            if y_true[i,j] != y_pred[i,j]:
-                account += 1
-    return account/(n*7)
 
 def lr_schedule(epoch):
     lr = 1e-3
@@ -196,7 +143,7 @@ def resnet_v1(input_shape, depth, num_classes=2):
     ax = layers.Reshape((1,1,num_filters//2))(ax)
     ax = layers.Multiply()([ax, x])
     y = layers.Flatten()(ax)
-    outputs = layers.Dense(num_classes, activation='sigmoid',
+    outputs = layers.Dense(num_classes, activation='softmax',
                            kernel_initializer='he_normal')(y)
     # Instantiate model
     model = Model(inputs=inputs, outputs=outputs)
@@ -303,64 +250,92 @@ def resnet_v2(input_shape, depth, num_classes=10, pool_size=8):
     # Instantiate model.
     model = Model(inputs=inputs, outputs=outputs)
     return model
+def rnn(input_shape, num_classes):
     
-def resnetWithAttention_main():
-    x, y = load_mlec_80()
-    #x = x.reshape((-1,21,21,1))
-    lr = 0.001
-    k = 0
-    y_pred = np.zeros((0, 7))
-    y_true = np.zeros((0, 7))
-    kf = KFold(n_splits=5, shuffle=True, random_state=42)
-    for train_index, test_index in kf.split(x,y):
-        x_train, x_test = x[train_index], x[test_index]
-        y_train, y_test = y[train_index], y[test_index]
+    
+nr40 = ['data/slec_{}_40.fasta'.format(i) for i in range(1,8)]
+prot_seqs, prot_labels = readSLEnzyme(nr40)
+seqs, labels = [], []
+for key in prot_seqs.keys():
+    seqs.append(prot_seqs[key])
+    if prot_labels[key] in [0,3,4,5,6]:
+        labels.append(0)
+    else:
+        labels.append(1)
+    #labels.append(prot_labels[key])
+x = np.ndarray(shape=(len(seqs), 21, 21, 2))  
+    
+x[:,:,:,0] = DAA_chaosGraph(seqs)
+x[:,:,:,1] = daa(seqs)
         
-        tf.keras.backend.clear_session()
-        model = resnet_v1(input_shape=(21, 21, 2), depth=20, num_classes=7)
-        model.summary()
-        modelfile = './model/mlec/weights-mlec80-{}.h5'.format(k)
-       
-        model.compile(optimizer=Adam(learning_rate=lr),
-             loss='binary_crossentropy',
-             metrics=['accuracy'])
-    
-        lr_decay = LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
-    
-        checkpoint = ModelCheckpoint(modelfile, monitor='val_loss',
-                                       save_best_only=True, 
-                                       save_weights_only=True, 
-                                       verbose=1)
-        weight = np.sum(y_train, axis=0)
-        weight = np.max(weight)/weight
-        
-        model.fit(x_train, y_train,
-                  batch_size=64,
-                  epochs=20,
-                  class_weight=weight,
-                  validation_data=[x_test, y_test],
-                  callbacks=[checkpoint, lr_decay])
-        
-        model.load_weights(modelfile)
-        pred = model.predict(x_test)
-        k += 1
-        y_pred = np.concatenate((y_pred, pred))
-        y_true = np.concatenate((y_true,y_test))
-    
-    c = np.sum(y_true,axis=0)/(len(y_true))
-    #c=0.5
-    y_p = (y_pred>c).astype(float)
-    info = '\n\n--- use melc_80 dataset ---\n'
-    
-    with open('ml_result.txt', 'a') as fw:
-        fw.write(info)
-        fw.write("hamming loass = {}\n".format(hamming_loss(y_true, y_p)))
-        fw.write("subset accuracy = {}\n".format( subsetAcc(y_true, y_p)))
-    '''    
-    from sklearn.metrics import average_precision_score
-    average_precision_score(y_true,y_p,average="macro")
-    average_precision_score(y_true,y_p,average="micro")
-    '''
+y = np.array(labels)
+ 
+(X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x,y,random_state=42)
+#x = x.reshape((-1,21,21,1))
+lr = 0.001
+k = 0
+num_classes = 2
+y_pred = np.zeros((0, num_classes))
+y_true = np.zeros((0, num_classes))
 
-if __name__ == "__main__":
-    resnetWithAttention_main()
+sm = SMOTE(sampling_strategy='not majority')
+for k in range(5):
+    x_train, x_test = X_train_Kf[k], X_test_Kf[k]
+    y_train, y_test = y_train_Kf[k], y_test_Kf[k]
+    
+    x_train = x_train.reshape((-1, 21*21*2))
+    x_res, y_res = sm.fit_resample(x_train, y_train)
+    x_train = x_res.reshape((-1, 21,21,2))
+    y_train = to_categorical(y_res, num_classes)
+    
+    #y_train = to_categorical(y_train, num_classes)
+    y_test = to_categorical(y_test, num_classes)
+    
+    tf.keras.backend.clear_session()
+    model = resnet_v1(input_shape=(21, 21, 2), depth=20, num_classes=num_classes)
+    model.summary()
+    modelfile = './model/slec/weights-slec-biset-{}.h5'.format(k)
+   
+    model.compile(optimizer=Adam(learning_rate=lr),
+         loss='categorical_crossentropy',
+         metrics=['accuracy'])
+
+    lr_decay = LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
+
+    checkpoint = ModelCheckpoint(modelfile, monitor='val_loss',
+                                   save_best_only=True, 
+                                   save_weights_only=True, 
+                                   verbose=1)
+    #weight = np.sum(y_train, axis=0)
+    #weight = np.max(weight)/weight
+    
+    model.fit(x_train, y_train,
+              batch_size=100,
+              epochs=20,
+              #class_weight=weight,
+              validation_data=[x_test, y_test],
+              callbacks=[checkpoint, lr_decay])
+    
+    model.load_weights(modelfile)
+    pred = model.predict(x_test)
+    k += 1
+    y_pred = np.concatenate((y_pred, pred))
+    y_true = np.concatenate((y_true,y_test))
+
+with open('sl_result.txt', 'a') as fw:
+    y_t = np.argmax(y_true,axis=1)
+    y_p = np.argmax(y_pred,axis=1)
+    cm=confusion_matrix(y_t, y_p)
+    for i in range(num_classes):
+            for j in range(num_classes):
+                fw.write(str(cm[i,j]) + "\t" )
+            fw.write("\n")
+            
+    fw.write("ACC = {} \n".format(accuracy_score(y_t,y_p)))
+    '''fw.write("micro recall = {}\n".format(recall_score(y_t, y_p, average='micro')))
+    fw.write("macro recall = {}\n".format(recall_score(y_t, y_p, average='macro')))
+    fw.write("micro precision = {}\n".format(precision_score(y_t, y_p, average='micro')))
+    fw.write("micro precision = {}\n".format(precision_score(y_t, y_p, average='macro')))
+    fw.write("micro AUC = {}\n".format(roc_auc_score(y_true, y_pred, average='micro', multi_class='ovr')))
+    fw.write("macro AUC = {}\n".format(roc_auc_score(y_true, y_pred, average='macro', multi_class='ovr')))
+    '''

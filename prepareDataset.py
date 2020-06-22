@@ -19,6 +19,7 @@ nr60 = ['data/slec_{}_60.fasta'.format(i) for i in range(1,8)]
 nr80 = ['data/slec_{}_80.fasta'.format(i) for i in range(1,8)]
 nr100 = ['data/slec_{}.fasta'.format(i) for i in range(1,8)]
 
+
 def readAllEnzymeSeqsML():
     files=['ec_1.fasta', 'ec_2.fasta', 'ec_3.fasta', 'ec_4.fasta', 'ec_5.fasta',
            'ec_6.fasta', 'ec_7.fasta']
@@ -221,7 +222,19 @@ if __name__ == "__main__":
     #data, target = readAllEnzymeSeqsML()
     #writeSLEC(data, target)
     #x,y = load_SL_EC_data()
-    '''MLECseqs, MLEClabels = readMLEnzyme()
+    MLECseqs, MLEClabels = readMLEnzyme()
+    lenstat = {}
+    for key in MLECseqs.keys():
+        seq = MLECseqs[key]
+        lenstat[len(seq)] = lenstat.get(len(seq), 0) + 1
+        
+    items = list(lenstat.items())
+    items.sort(key=lambda x: x[1], reverse=True)
+    
+    for i in range(10):
+        item = items[i]
+        print("{0:<6}{1:>5}".format(item[0],item[1]))
+    '''
     seq_records = []
     for key in MLECseqs.keys():
         seq_record = SeqRecord(Seq(MLECseqs[key], IUPAC.protein), id=key)

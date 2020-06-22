@@ -4,3 +4,32 @@ subset accuracy = 0.6424524190033416
 
 hamming loass = 0.10900562462381437
 subset accuracy = 0.6115066104896121
+
+----- resnet_v1 with GlobalAveragePooling, with attention
+hamming loass = 0.0884373508229385
+subset accuracy = 0.7101554554699986
+hamming loass = 0.09011851144642079
+subset accuracy = 0.6789190759843091
+
+----- resnet_v2 with GlobalAveragePooling, with attention
+hamming loass = 0.2050393308565617
+subset accuracy = 0.06697660903675723
+
+----- resnet_v1 with GlobalAveragePooling, with attention
+hamming loass = 0.0367364728835018
+subset accuracy = 0.8579107947116084
+hamming loass = 0.03924783628401237
+subset accuracy = 0.849920092982711
+hamming loass = 0.038438388576409785
+subset accuracy = 0.8526805172163301
+hamming loass = 0.0376081857993815
+subset accuracy = 0.8570390817957286
+
+--- use melc_80 dataset ---
+hamming loass = 0.3629368097048705
+subset accuracy = 0.34474017743979724
+
+
+--- use melc_80 dataset, data with mask ---
+hamming loass = 0.32192648922686945
+subset accuracy = 0.17807351077313055
