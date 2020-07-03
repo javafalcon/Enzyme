@@ -8,7 +8,7 @@ Created on Wed Jun 10 11:17:23 2020
 
 from Capsule import CapsuleLayer, squash, Length, Mask, margin_loss
 
-from prepareDataset import load_Kf_data_with_weight, load_data, load_SL_EC_data, load_ML_SL_EC_data
+from prepareDataset import load_Kf_data_with_weight, load_data, load_Kf_data, load_SL_EC_data, load_ML_SL_EC_data
 from resnet import resnet_v1
 
 import tensorflow as tf
@@ -301,7 +301,7 @@ def classify_ec(lr=0.001):
     num_classes = 2
     metricsFile = 'result.txt'
     x, y = load_data()
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=59)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=259)
     
     x_train = x_train.reshape((-1, row, col, channels))
     y_train = to_categorical(y_train, num_classes=2)
@@ -316,7 +316,7 @@ def classify_ec(lr=0.001):
                  metrics=['accuracy'])
     
     lr_decay = callbacks.LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
-    modelfile = './model/ec/weights-ec.h5'
+    modelfile = './model/ec/weights-ec_259.h5'
     checkpoint = callbacks.ModelCheckpoint(modelfile, monitor='val_loss',
                                            save_best_only=True, 
                                            save_weights_only=True, 
@@ -407,4 +407,4 @@ def classify_ML_SL_ec(lr=0.001):
     
             
 if __name__ == "__main__":
-    classify_slec()
+    classify_ec()

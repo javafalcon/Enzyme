@@ -1,35 +1,290 @@
 
-hamming loass = 0.0999149042153546
-subset accuracy = 0.6424524190033416
+---1. use melc_90 dataset ---
+残差网络，卷积核尺寸：5，最大池化，最后一层Attention
+hamming loass = 0.06584849463523164
+subset accuracy = 0.7568450138156242
 
-hamming loass = 0.10900562462381437
-subset accuracy = 0.6115066104896121
+---2. use melc_90 dataset ---
+同上，添加了一层全连接1024神经元，添加dropout(0.5)
+hamming loass = 0.07901819356227796
+subset accuracy = 0.73172569706104
 
------ resnet_v1 with GlobalAveragePooling, with attention
-hamming loass = 0.0884373508229385
-subset accuracy = 0.7101554554699986
-hamming loass = 0.09011851144642079
-subset accuracy = 0.6789190759843091
+---3. use melc_90 dataset ---
+同1，损失乘权重[2, 1, 1, 1, 7, 7, 30], 输出层前一层dropout(0.25), 分类阈值0.5
+hamming loss = 0.09204435353644096
+subset accuracy = 0.672444109520221
 
------ resnet_v2 with GlobalAveragePooling, with attention
-hamming loass = 0.2050393308565617
-subset accuracy = 0.06697660903675723
+---4. use melc_90 dataset ---
+损失权重[2.5, 1.4, 1, 2, 8, 10, 36], 卷积核尺寸：3，过滤器16-32-64
+hamming loss = 0.1043169340079664
+subset accuracy = 0.629490077869882
 
------ resnet_v1 with GlobalAveragePooling, with attention
-hamming loass = 0.0367364728835018
-subset accuracy = 0.8579107947116084
-hamming loass = 0.03924783628401237
-subset accuracy = 0.849920092982711
-hamming loass = 0.038438388576409785
-subset accuracy = 0.8526805172163301
-hamming loass = 0.0376081857993815
-subset accuracy = 0.8570390817957286
+--- use pos_all_90_new dataset ---
+损失权重同[1, 1, 1, 1, 5, 15]，卷积核尺寸：5，过滤器64-128-256
+hamming loss = 0.09213967081987387
+subset accuracy = 0.7161975080756806
+macro average precision_score: 0.7340049813522835
+micro average precisioin_score: 0.80108269838235
 
---- use melc_80 dataset ---
-hamming loass = 0.3629368097048705
-subset accuracy = 0.34474017743979724
+--- use pos_all_90_new dataset ---
+损失权重同[1, 1, 1, 1, 5, 15]，卷积核尺寸：7，过滤器32-64-128
+hamming loss = 0.0844485463774804
+subset accuracy = 0.7397323488694048
+macro average precision_score: 0.7459032478811163
+micro average precisioin_score: 0.8161444200786373
+
+损失权重同[1, 1, 1, 1, 5, 15]，卷积核尺寸：9，过滤器32-64-128
+--- use pos_all_90_new dataset ---
+hamming loss = 0.1200584525457622
+subset accuracy = 0.628518689432395
+macro average precision_score: 0.6952209694455039
+micro average precisioin_score: 0.7462888805031931
 
 
---- use melc_80 dataset, data with mask ---
-hamming loass = 0.32192648922686945
-subset accuracy = 0.17807351077313055
+损失权重同[1, 1, 1, 1, 5, 15]，卷积核尺寸：3，过滤器32-64-128
+--- use pos_all_90_new dataset ---
+hamming loss = 0.08952468850946008
+subset accuracy = 0.7148131056760498
+macro average precision_score: 0.7329339847281978
+micro average precisioin_score: 0.8072855452708393
+
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 3
+num_filters: 16
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.09345198226644978
+subset accuracy = 0.5958919401652154
+macro average precision_score: 0.5818261373248236
+micro average precisioin_score: 0.6752911623936054
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 3
+num_filters: 16
+num_classes: 7
+dropout: 0.45
+hamming loss = 0.09881032118138615
+subset accuracy = 0.5925429783433802
+macro average precision_score: 0.5770303110199934
+micro average precisioin_score: 0.6601657287219378
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 3
+num_filters: 16
+num_classes: 7
+dropout: 0.65
+hamming loss = 0.09922495454980385
+subset accuracy = 0.5686537173476223
+macro average precision_score: 0.584048458590229
+micro average precisioin_score: 0.6566084261384715
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 3
+num_filters: 32
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.0802156093515772
+subset accuracy = 0.6485822728287565
+macro average precision_score: 0.6311697572599425
+micro average precisioin_score: 0.7178906849674412
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 3
+num_filters: 32
+num_classes: 7
+dropout: 0.45
+hamming loss = 0.08445762765923516
+subset accuracy = 0.6307211431123019
+macro average precision_score: 0.6363758689485525
+micro average precisioin_score: 0.7042995424997336
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 3
+num_filters: 32
+num_classes: 7
+dropout: 0.65
+hamming loss = 0.09172965904379166
+subset accuracy = 0.5996874302299621
+macro average precision_score: 0.6164488878660982
+micro average precisioin_score: 0.6818870439415431
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 3
+num_filters: 64
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.07278410359455235
+subset accuracy = 0.681178834561286
+macro average precision_score: 0.6741465415705904
+micro average precisioin_score: 0.7422696734786778
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 3
+num_filters: 64
+num_classes: 7
+dropout: 0.45
+hamming loss = 0.08066213759448856
+subset accuracy = 0.6421076133065416
+macro average precision_score: 0.6442794193868303
+micro average precisioin_score: 0.716394735748641
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 3
+num_filters: 64
+num_classes: 7
+dropout: 0.65
+hamming loss = 0.08404299429081746
+subset accuracy = 0.6407680285778076
+macro average precision_score: 0.627246863480642
+micro average precisioin_score: 0.7059707776993688
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 5
+num_filters: 16
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.08630753037986795
+subset accuracy = 0.6231301629828087
+macro average precision_score: 0.6369491925850765
+micro average precisioin_score: 0.698655553631106
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 5
+num_filters: 16
+num_classes: 7
+dropout: 0.45
+hamming loss = 0.0810448760884126
+subset accuracy = 0.6519312346505917
+macro average precision_score: 0.6529463010904416
+micro average precisioin_score: 0.7157431319030391
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 5
+num_filters: 16
+num_classes: 7
+dropout: 0.65
+hamming loss = 0.09766210569961407
+subset accuracy = 0.5802634516633177
+macro average precision_score: 0.5770705325469957
+micro average precisioin_score: 0.6621290602581754
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 5
+num_filters: 32
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.0691480879022741
+subset accuracy = 0.7021656619781201
+macro average precision_score: 0.6994873534668821
+micro average precisioin_score: 0.7542669613201392
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 5
+num_filters: 32
+num_classes: 7
+dropout: 0.45
+hamming loss = 0.07686664752974197
+subset accuracy = 0.6702388926099576
+macro average precision_score: 0.6593194665001885
+micro average precisioin_score: 0.7288896578270935
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 5
+num_filters: 32
+num_classes: 7
+dropout: 0.65
+hamming loss = 0.09434503875227251
+subset accuracy = 0.5894172806430007
+macro average precision_score: 0.605294521383467
+micro average precisioin_score: 0.6729310198403657
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 5
+num_filters: 64
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.07970529135967849
+subset accuracy = 0.6577361018084393
+macro average precision_score: 0.6568832222076679
+micro average precisioin_score: 0.7196555158388902
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 5
+num_filters: 64
+num_classes: 7
+dropout: 0.45
+hamming loss = 0.09565272860651293
+subset accuracy = 0.5889707524000893
+macro average precision_score: 0.5864419555549423
+micro average precisioin_score: 0.6681584344861851
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 5
+num_filters: 64
+num_classes: 7
+dropout: 0.65
+hamming loss = 0.09549325423404459
+subset accuracy = 0.58428220584952
+macro average precision_score: 0.5902545253429416
+micro average precisioin_score: 0.668434630614661
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 7
+num_filters: 16
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.07603738079290658
+subset accuracy = 0.657959365929895
+macro average precision_score: 0.669204708727689
+micro average precisioin_score: 0.7316250008532209
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 7
+num_filters: 16
+num_classes: 7
+dropout: 0.45
+hamming loss = 0.08433004816126048
+subset accuracy = 0.6400982362134405
+macro average precision_score: 0.6349935836856508
+micro average precisioin_score: 0.7052625722684506
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 7
+num_filters: 16
+num_classes: 7
+dropout: 0.65
+hamming loss = 0.08181035307626064
+subset accuracy = 0.6467961598571109
+macro average precision_score: 0.6505009665558423
+micro average precisioin_score: 0.7136931522968388
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 7
+num_filters: 32
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.07307115746499537
+subset accuracy = 0.6820718910471087
+macro average precision_score: 0.6749632131129409
+micro average precisioin_score: 0.7413980991664674
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 7
+num_filters: 32
+num_classes: 7
+dropout: 0.45
+hamming loss = 0.08643510987784263
+subset accuracy = 0.6264791248046438
+macro average precision_score: 0.6208323010742358
+micro average precisioin_score: 0.6977848954905316
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 7
+num_filters: 32
+num_classes: 7
+dropout: 0.65
+hamming loss = 0.09431314387777884
+subset accuracy = 0.5999106943514178
+macro average precision_score: 0.6101704503887342
+micro average precisioin_score: 0.6725054359242414

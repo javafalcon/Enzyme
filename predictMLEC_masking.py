@@ -36,13 +36,13 @@ def hamming_loss(y_true, y_pred):
                 account += 1
     return account/(n*7)
 
-def load_mlec(nr=80, n_features=15):
+def load_mlec(nr=80, time_steps=7740, n_features=15):
     aadict = aaindex1PCAValues(n_features)
     mlec_seqs, mlec_labels = readMLEnzyme()
-    x = np.zeros(shape=(3156, 7740, n_features))
+    x = np.zeros(shape=(3156, time_steps, n_features))
     labels = []
     i = 0
-    for seq_record in SeqIO.parse('data/mlec_80.fasta', 'fasta'):
+    for seq_record in SeqIO.parse('data/mlec_{}.fasta'.format(nr), 'fasta'):
         s = seq_record.id
         pid = s.split(' ')
         protId = pid[0]
@@ -52,6 +52,8 @@ def load_mlec(nr=80, n_features=15):
             if aa not in ['X','B','Z']:
                 x[i,j,:] = aadict[aa]
             j += 1
+            if j >= time_steps:
+                break
             
         labels.append(mlec_labels[protId])
         
@@ -69,14 +71,25 @@ def attention_block(inputs, TIME_STEPS):
     output_attention = layers.Multiply()([inputs, a_probs])
     return output_attention
 
-def get_attention_model(TIME_STEPS, INPUT_DIM):
-    inputs = layers.Input(shape=(TIME_STEPS, INPUT_DIM,))
+def cnn_block(inputs):
+    a = layers.Conv2D(64,3, activation='relu')(inputs)
+    a = layers.Conv2D(128, 3, activation='relu')(a)
+    a = layers.MaxPooling2D(pool_size=2)(a)
+    a = layers.Dropout(0.25)(a)
+    a = layers.Flatten()(a)
+    return a
+def get_attention_model(TIME_STEPS_W, INPUT_DIM):
+    inputs = layers.Input(shape=(TIME_STEPS_W**2, INPUT_DIM,))
     lstm_units = 32
     mask_inputs = layers.Masking(mask_value=0)(inputs)
     lstm_out = layers.LSTM(lstm_units, return_sequences=True)(mask_inputs)
-    attention_mul = attention_block(lstm_out, TIME_STEPS)
+    attention_mul = attention_block(lstm_out, TIME_STEPS_W**2)
     attention_mul = layers.Flatten()(attention_mul)
-    output = layers.Dense(7, activation='sigmoid')(attention_mul)
+    attention_mul = layers.Reshape((TIME_STEPS_W, TIME_STEPS_W, lstm_units))(attention_mul)
+    cnn = cnn_block(attention_mul)
+    flat = layers.Dense(1024, activation="relu")(cnn)
+    drop = layers.Dropout(0.3)(flat)
+    output = layers.Dense(7, activation='sigmoid')(drop)
     model = Model(inputs=inputs, outputs=output)
     return model
 
@@ -90,9 +103,9 @@ def masking_model(n_features):
     return model
 
 lr = 0.001
-TIME_STEPS = 7740
+TIME_STEPS_W = 60 #
 INPUT_DIM = 15
-x, y = load_mlec(nr=80, n_features=INPUT_DIM)
+x, y = load_mlec(nr=80, time_steps=TIME_STEPS_W**2, n_features=INPUT_DIM)
 
 y_pred = np.zeros((0, 7))
 y_true = np.zeros((0, 7))
@@ -106,26 +119,26 @@ for train_index, test_index in kf.split(x,y):
     tf.keras.backend.clear_session()
     
     #model = masking_model(INPUT_DIM)
-    model = get_attention_model(TIME_STEPS, INPUT_DIM)
+    model = get_attention_model(TIME_STEPS_W, INPUT_DIM)
     modelfile = './model/mlec/weights-mlec80-mask-{}.h5'.format(k)
    
     model.compile(optimizer=Adam(learning_rate=lr),
          loss='binary_crossentropy',
          metrics=['accuracy'])
-    '''print(model.summary())
-    lr_decay = LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
+    print(model.summary())
+    '''lr_decay = LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
 
     checkpoint = ModelCheckpoint(modelfile, monitor='val_loss',
                                    save_best_only=True, 
                                    save_weights_only=True, 
-                                   verbose=1)   
+                                   verbose=1)  ''' 
     model.fit(x_train, y_train,
               batch_size=64,
               epochs=20,
-              validation_data=[x_test, y_test],
-              callbacks=[checkpoint, lr_decay])
-    '''
-    model.load_weights(modelfile)
+              validation_data=[x_test, y_test])
+              #callbacks=[checkpoint, lr_decay])
+    
+    #model.load_weights(modelfile)
     pred = model.predict(x_test)
     
     y_pred = np.concatenate((y_pred, pred))

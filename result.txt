@@ -251,3 +251,20 @@ Total validation result:
 62	116	394	583	315	182	22	
 13	89	104	166	76	39	203	
 ACC: 0.206362 
+predict EC and Not EC:
+5588	0
+0	5552
+ACC:1.000000
+MCC:1.000000
+
+predict EC and Not EC:
+5526	0
+3	5611
+ACC:0.999731
+MCC:0.999462
+
+predict EC and Not EC:
+5526	0
+0	5614
+ACC:1.000000
+MCC:1.000000

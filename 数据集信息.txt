@@ -1,14 +1,39 @@
 1. 从2020_6 release Uniprot数据库中下载7个列表的酶，去掉了所有多标签的序列，去掉序列长度小于50AAs，各类别序列样本数：
-类别	nr100	nr40	nr60	nr80
-0： 	31676	3995	8837	15090
+类别	    nr100	nr40	nr60	nr80
+0： 	    31676	3995	8837	15090
 1：		92751	10219	24868	42858
 2：		56851	8477	17857	28375
 3：		23439	1559	4418	9379
 4：		13898	1177	3469	6256
 5：		28402	1674	5931	12263
 6：		13509	690		2244	4749
-总计	260526	27791	67624	118970
+总计	    260526	27791	67624	118970
 
 2. 从2020_6 release Uniprot数据库中下载非酶的蛋白质序列（查询标准：not ec* and reviewed)，随机挑选27791个长度大于等于50AAs的蛋白质序列构成负样本集
 
-3. 在pos_all_90.fasta(used by chel)数据集中存在错误，如P29677并不具备多标记属性，只属于第7类
+3. 在pos_all_90.fasta(used by chel)数据集中存在错误，如P29677并不具备多标记属性，只属于第7类, 另外还有如下23个序列没有多标记：
+Q9GMC7 has not multi-label
+Q64410 has not multi-label
+P12394 has not multi-label
+Q9GMC8 has not multi-label
+Q95328 has not multi-label
+P05093 has not multi-label
+O73853 has not multi-label
+P70687 has not multi-label
+P27786 has not multi-label
+P30437 has not multi-label
+P70085 has not multi-label
+Q91Z85 has not multi-label
+P19100 has not multi-label
+O57525 has not multi-label
+P11715 has not multi-label
+Q92113 has not multi-label
+O60502 has not multi-label
+Q3SZ62 has not multi-label
+Q32KV0 has not multi-label
+Q54NE6 has not multi-label
+Q3T014 has not multi-label
+P15327 has not multi-label
+P51121 has not multi-label
+
+4. 在段力文提供的multi-label数据集中，共4479个序列，其中序号从4430到4478的序列只有EC7标签

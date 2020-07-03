@@ -164,9 +164,26 @@ def load_ML_SL_EC_data():
     y[:5000] = 0
     
     return x, y
-''
+
+def load_mlec_nr(nr=80):
+    mlec_seqs, mlec_labels = readMLEnzyme()
+    seqs, labels = [], []
+    
+    for seq_record in SeqIO.parse('data/mlec_{}.fasta'.format(nr), 'fasta'):
+        s = seq_record.id
+        pid = s.split(' ')
+        protId = pid[0]
+        seqs.append(mlec_seqs[protId])
+        labels.append(mlec_labels[protId])
+    
+    x = np.ndarray(shape=(len(seqs), 21, 21, 1))    
+    x[:,:,:,0] = DAA_chaosGraph(seqs)
+    
+    y = np.array(labels)
+    return x, y
+
 def load_data():
-    ec_seqs, ec_labels = readSLEnzyme()
+    ec_seqs, ec_labels = readSLEnzyme(nr40)
     not_ec = getNotEnzyme(27907, random_state=42)
     pos_x = DAA_chaosGraph(ec_seqs)
     neg_x = DAA_chaosGraph(not_ec)
@@ -222,6 +239,18 @@ if __name__ == "__main__":
     #data, target = readAllEnzymeSeqsML()
     #writeSLEC(data, target)
     #x,y = load_SL_EC_data()
+    '''
+    # stastic number of proteins with multi-label
+    MLECseqs, MLEClabels = readMLEnzyme()
+    keys = MLECseqs.keys()
+    for seq_record in SeqIO.parse('data\\pos_all_90.fasta','fasta'):
+        seqid = seq_record.id
+        seqid = seqid.split('|')
+        seqid = seqid[1]
+        if seqid not in keys :
+            print("{} has not multi-label".format(seqid))
+    '''
+    
     MLECseqs, MLEClabels = readMLEnzyme()
     lenstat = {}
     for key in MLECseqs.keys():
@@ -234,17 +263,43 @@ if __name__ == "__main__":
     for i in range(10):
         item = items[i]
         print("{0:<6}{1:>5}".format(item[0],item[1]))
+    
+    
     '''
     seq_records = []
     for key in MLECseqs.keys():
         seq_record = SeqRecord(Seq(MLECseqs[key], IUPAC.protein), id=key)
         seq_records.append(seq_record)
-    SeqIO.write(seq_records,'mlec.fasta','fasta')'''
-    '''count = 0
+    SeqIO.write(seq_records,'mlec.fasta','fasta')
+    '''
+    
+    '''    
+    count = 0
     for key in ECseqs.keys():
         if len(ECseqs[key]) < 50:
             count += 1
-            print("{}:{}'s length is less than 50".format(count,key))'''
-
-        
+            print("{}:{}'s length is less than 50".format(count,key))
+    '''
+    
+    
+    # 统计各个长度段序列数
+    items.sort(key=lambda x:x[0]) 
+    statlen = np.zeros((7,))
+    for item in items:
+        if item[0] < 1000:
+            statlen[0] += 1
+        elif item[0] < 2000:
+            statlen[1] += 1
+        elif item[0] < 3000:
+            statlen[2] += 1
+        elif item[0] < 4000:
+            statlen[3] += 1
+        elif item[0] < 5000:
+            statlen[4] += 1
+        elif item[0] < 6000:
+            statlen[5] += 1
+        else:
+            statlen[6] += 1
+       
+    
         

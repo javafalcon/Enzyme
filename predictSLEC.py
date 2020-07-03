@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-from tensorflow.keras.utils import to_categorical
 """
 Created on Fri Jun 19 09:12:35 2020
 
@@ -20,7 +20,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.utils import to_categorical
 
 from imblearn.over_sampling import SMOTE
-
+from imblearn.under_sampling import OneSidedSelection, RandomUnderSampler
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, matthews_corrcoef, confusion_matrix
 from sklearn.metrics import f1_score,roc_auc_score,recall_score,precision_score
@@ -43,7 +43,7 @@ def lr_schedule(epoch):
     lr = 1e-3
     return lr*0.9*epoch
 
-def resnet_layer(inputs, num_filters, kernel_size=3, strides=1,
+def resnet_layer(inputs, num_filters, kernel_size=5, strides=1,
                  activation='relu', batch_normalization=True, conv_first=True):
     ''' 2D Convolution-Batch Normalization-Activation stack builder
     # Arguments
@@ -78,7 +78,7 @@ def resnet_layer(inputs, num_filters, kernel_size=3, strides=1,
         
     return x
 
-def resnet_v1(input_shape, depth, num_classes=2):
+def resnet_v1(input_shape, depth, num_classes=1):
     """ResNet Version 1 Model builder [a]
 
     Stacks of 2 x (3 x 3) Conv2D-BN-ReLU
@@ -143,7 +143,7 @@ def resnet_v1(input_shape, depth, num_classes=2):
     ax = layers.Reshape((1,1,num_filters//2))(ax)
     ax = layers.Multiply()([ax, x])
     y = layers.Flatten()(ax)
-    outputs = layers.Dense(num_classes, activation='softmax',
+    outputs = layers.Dense(num_classes, activation='sigmoid',
                            kernel_initializer='he_normal')(y)
     # Instantiate model
     model = Model(inputs=inputs, outputs=outputs)
@@ -249,47 +249,47 @@ def resnet_v2(input_shape, depth, num_classes=10, pool_size=8):
 
     # Instantiate model.
     model = Model(inputs=inputs, outputs=outputs)
-    return model
-def rnn(input_shape, num_classes):
-    
+    return model 
     
 nr40 = ['data/slec_{}_40.fasta'.format(i) for i in range(1,8)]
 prot_seqs, prot_labels = readSLEnzyme(nr40)
 seqs, labels = [], []
 for key in prot_seqs.keys():
     seqs.append(prot_seqs[key])
-    if prot_labels[key] in [0,3,4,5,6]:
-        labels.append(0)
-    else:
-        labels.append(1)
-    #labels.append(prot_labels[key])
+    labels.append(prot_labels[key])
 x = np.ndarray(shape=(len(seqs), 21, 21, 2))  
     
 x[:,:,:,0] = DAA_chaosGraph(seqs)
 x[:,:,:,1] = daa(seqs)
         
 y = np.array(labels)
+
+by = (y==0).astype(int)
  
-(X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x,y,random_state=42)
+(X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x, by, random_state=42)
 #x = x.reshape((-1,21,21,1))
 lr = 0.001
 k = 0
-num_classes = 2
+num_classes = 1
 y_pred = np.zeros((0, num_classes))
-y_true = np.zeros((0, num_classes))
+y_true = np.zeros((0, ))
 
-sm = SMOTE(sampling_strategy='not majority')
+#sm = SMOTE(sampling_strategy='not majority')
+#oss = OneSidedSelection('majority', random_state=42)
+#rus = RandomUnderSampler(random_state=42)
 for k in range(5):
     x_train, x_test = X_train_Kf[k], X_test_Kf[k]
     y_train, y_test = y_train_Kf[k], y_test_Kf[k]
     
-    x_train = x_train.reshape((-1, 21*21*2))
-    x_res, y_res = sm.fit_resample(x_train, y_train)
-    x_train = x_res.reshape((-1, 21,21,2))
-    y_train = to_categorical(y_res, num_classes)
+    #x_train = x_train.reshape((-1, 21*21*2))
+    #x_res, y_res = oss.fit_resample(x_train, y_train)
+    #x_res, y_res = rus.fit_resample(x_train, y_train)
+    #x_res, y_res = sm.fit_resample(x_res, y_res)
+    #x_train = x_res.reshape((-1, 21,21,2))
+    #y_train = to_categorical(y_res, num_classes)
     
     #y_train = to_categorical(y_train, num_classes)
-    y_test = to_categorical(y_test, num_classes)
+    #y_test = to_categorical(y_test, num_classes)
     
     tf.keras.backend.clear_session()
     model = resnet_v1(input_shape=(21, 21, 2), depth=20, num_classes=num_classes)
@@ -297,7 +297,7 @@ for k in range(5):
     modelfile = './model/slec/weights-slec-biset-{}.h5'.format(k)
    
     model.compile(optimizer=Adam(learning_rate=lr),
-         loss='categorical_crossentropy',
+         loss='binary_crossentropy',
          metrics=['accuracy'])
 
     lr_decay = LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
@@ -311,8 +311,8 @@ for k in range(5):
     
     model.fit(x_train, y_train,
               batch_size=100,
-              epochs=20,
-              #class_weight=weight,
+              epochs=10,
+              class_weight={1:1, 0:0.17},
               validation_data=[x_test, y_test],
               callbacks=[checkpoint, lr_decay])
     
@@ -320,11 +320,13 @@ for k in range(5):
     pred = model.predict(x_test)
     k += 1
     y_pred = np.concatenate((y_pred, pred))
-    y_true = np.concatenate((y_true,y_test))
+    y_true = np.concatenate((y_true, y_test))
 
 with open('sl_result.txt', 'a') as fw:
-    y_t = np.argmax(y_true,axis=1)
-    y_p = np.argmax(y_pred,axis=1)
+    #y_t = np.argmax(y_true,axis=1)
+    #y_p = np.argmax(y_pred,axis=1)
+    y_p = (y_pred > 0.5).astype(int)
+    y_t = y_true
     cm=confusion_matrix(y_t, y_p)
     for i in range(num_classes):
             for j in range(num_classes):
