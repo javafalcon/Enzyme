@@ -5,10 +5,10 @@ Created on Mon Jun 15 14:20:26 2020
 @author: Administrator
 """
 
-from SeqFormulate import DAA_chaosGraph
+from SeqFormulate import DAA_chaosGraph, TAA_chaosGraph
 import numpy as np
 import re
-from prepareDataset import readMLEnzyme
+from prepareDataset import readMLEnzyme, load_MIML
 from Bio import SeqIO
 import tensorflow as tf
 from tensorflow.keras import layers
@@ -19,8 +19,10 @@ from tensorflow.keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 from tensorflow.keras.callbacks import ModelCheckpoint
 from sklearn.utils import shuffle
 from sklearn.model_selection import KFold
+from skmultilearn.model_selection import IterativeStratification
 from sklearn import metrics
 import scipy.io as sio
+from over_sampling import MLSMOTE
 def daa(seqs):
     AminoAcids = 'ARNDCQEGHILKMFPSTWYVX'
     x = []
@@ -55,15 +57,17 @@ def load_mlec_4479(firstly_load=False):
         seqs = []
         for record in SeqIO.parse('data/4479(0.9).fasta','fasta'):
             seqs.append(str(record.seq))
-        
+        '''
         x = np.ndarray(shape=(len(seqs), 21, 21, 2))    
         x[:,:,:,0] = DAA_chaosGraph(seqs)
         x[:,:,:,1] = daa(seqs)
-        y = np.array(labels, dtype=float)
         
-        np.savez('mlec_4479.npz', x=x, y=y)
+        '''
+        x = TAA_chaosGraph(seqs)
+        y = np.array(labels, dtype=float)
+        np.savez('mlec_4479_TAA.npz', x=x, y=y)
     else:
-        data = np.load('mlec_4479.npz')
+        data = np.load('mlec_4479_TAA.npz')
         x, y = data['x'], data['y']
     return x,y
     
@@ -87,7 +91,7 @@ def load_mlec_nr(nrfile='data/melc_90.fasta', npzfile='melc_nr90.npz', descripti
         x[:,:,:,0] = DAA_chaosGraph(seqs)
         x[:,:,:,1] = daa(seqs)
         y = np.array(labels)
-        np.savez(nzfile, x=x, y=y)
+        np.savez(npzfile, x=x, y=y)
     else:
         data = np.load(npzfile)
         x, y = data[x], data[y]
@@ -223,7 +227,7 @@ def myloss(weight):
         return -tf.math.reduce_mean( (y_true*tf.math.log(epsilon + y_pred) + (1-y_true)*tf.math.log(1-y_pred+epsilon)) * weight)
     return weightloss
 
-def resnetWithAttention_main(x, y, using_weight=False, params=None):
+def resnetWithAttention_main(x, y, params=None, using_weight=False, kflod=5 ):
     # 4478 enzyme sequences with 7 labels
     # [1076, 2814, 1924,  854,  237,  205,   49]
     # [2.6, 1, 1.5, 3.3, 12, 14, 57]
@@ -232,13 +236,18 @@ def resnetWithAttention_main(x, y, using_weight=False, params=None):
     
     y_pred = np.zeros((0, params.get('num_classes',2)))
     y_true = np.zeros((0, params.get('num_classes',2)))
-    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    #kf = KFold(n_splits=kflod, shuffle=True, random_state=42)
+    kf = IterativeStratification(n_splits=kflod, order=1)
     for train_index, test_index in kf.split(x,y):
         x_train, x_test = x[train_index], x[test_index]
         y_train, y_test = y[train_index], y[test_index]
-        
+        '''
+        x_train = x_train.reshape((-1,21*21*2))
+        x_new, y_new = MLSMOTE(x_train,y_train, k_neighbors=7, maxstep=30)
+        x_new = x_new.reshape((-1,21,21,2))
+        '''
         tf.keras.backend.clear_session()
-        model = resnet_v1(input_shape=(21, 21, 2), depth=20, netparam=params)
+        model = resnet_v1(input_shape=(10, 21, 21), depth=20, netparam=params)
         model.summary()
         modelfile = './model/mlec/weights-4479-{}.h5'.format(k)
                
@@ -255,7 +264,7 @@ def resnetWithAttention_main(x, y, using_weight=False, params=None):
             model.compile(optimizer=Adam(learning_rate=lr),
                  loss= 'binary_crossentropy',
                  metrics=['accuracy'])
-            c = np.sum(y_true,axis=0)/(len(y_true))
+            c = np.sum(y_train,axis=0)/(len(y_train))
             info = '\n--- use 4479 dataset by binary corssentropy---\n'
             
         lr_decay = LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
@@ -268,7 +277,7 @@ def resnetWithAttention_main(x, y, using_weight=False, params=None):
         x_train, y_train = shuffle(x_train, y_train)
         
         model.fit(x_train, y_train,
-                  batch_size=32,
+                  batch_size=64,
                   epochs=20,
                   validation_data=[x_test, y_test],
                   callbacks=[checkpoint, lr_decay])
@@ -276,28 +285,30 @@ def resnetWithAttention_main(x, y, using_weight=False, params=None):
         model.load_weights(modelfile)
         pred = model.predict(x_test)
         k += 1
+        pred = (pred > c).astype(float)
         y_pred = np.concatenate((y_pred, pred))
         y_true = np.concatenate((y_true,y_test))
              
-    y_p = (y_pred>c).astype(float)
+    #y_p = (y_pred>c).astype(float)
     
     for key in params.keys():
         info += key + ": " + str(params.get(key, None)) + '\n'
       
     with open('ml_result.txt', 'a') as fw:
         fw.write(info)
-        fw.write("hamming loss = {}\n".format(metrics.hamming_loss(y_true, y_p)))
-        fw.write("subset accuracy = {}\n".format( metrics.accuracy_score(y_true, y_p)))
-        fw.write("macro average precision_score: {}\n".format(metrics.average_precision_score(y_true,y_p,average="macro")))
-        fw.write("micro average precisioin_score: {}\n".format(metrics.average_precision_score(y_true,y_p,average="micro")))
+        fw.write("hamming loss = {}\n".format(metrics.hamming_loss(y_true, y_pred)))
+        fw.write("subset accuracy = {}\n".format( metrics.accuracy_score(y_true, y_pred)))
+        fw.write("macro average precision_score: {}\n".format(metrics.average_precision_score(y_true,y_pred,average="macro")))
+        fw.write("micro average precisioin_score: {}\n".format(metrics.average_precision_score(y_true,y_pred,average="micro")))
     
-    return metrics.accuracy_score(y_true, y_p)
+    return metrics.accuracy_score(y_true, y_pred)
+
 def statInfo():
     #statlen = np.zeros((7,))
     statlen = np.zeros((2,))
-    for seq_record in SeqIO.parse('data/mlec.fasta', 'fasta'):
+    for seq_record in SeqIO.parse('data/mlec_90.fasta', 'fasta'):
         seq = str(seq_record.seq)
-        '''if len(seq) < 1000:
+        if len(seq) < 1000:
             statlen[0] += 1
         elif len(seq) < 2000:
             statlen[1] += 1
@@ -310,18 +321,18 @@ def statInfo():
         elif len(seq) < 6000:
             statlen[5] += 1
         else:
-            statlen[6] += 1'''
-        if len(seq) < 4225:
-            statlen[0] += 1
-        else:
-            statlen[1] += 1
+            statlen[6] += 1
     print(statlen)
     return statlen
 if __name__ == "__main__":    
     #weight = np.array([1, 1, 1, 1, 5, 15])
     #weight = np.array([2, 1, 1, 3, 12, 14, 57])
-    x, y = load_mlec_4479(False) 
+    #x, y = load_mlec_4479(False) 
+    x, y = load_MIML()
     x, y = shuffle(x, y)
+    
+    
+    '''
     best_subacc = 0.
     best_param = {'kernel_size': 0, 'num_filters': 0,  'dropout': 0} 
     for k in [3, 5, 7]:
@@ -337,4 +348,6 @@ if __name__ == "__main__":
     
     # report the best configuration
     print("Best: %f using %s" % (best_subacc, best_param))
-    
+    '''
+    params = {'kernel_size': 5, 'num_filters': 64, 'num_classes': 7, 'dropout': 0.25} 
+    subacc = resnetWithAttention_main(x, y, params=params, using_weight=False)

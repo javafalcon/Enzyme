@@ -24,7 +24,8 @@ from imblearn.under_sampling import OneSidedSelection, RandomUnderSampler
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, matthews_corrcoef, confusion_matrix
 from sklearn.metrics import f1_score,roc_auc_score,recall_score,precision_score
-
+from sklearn.utils import shuffle
+from sklearn.utils.class_weight import compute_class_weight
 def daa(seqs):
     AminoAcids = 'ARNDCQEGHILKMFPSTWYVX'
     x = []
@@ -78,7 +79,7 @@ def resnet_layer(inputs, num_filters, kernel_size=5, strides=1,
         
     return x
 
-def resnet_v1(input_shape, depth, num_classes=1):
+def resnet_v1(input_shape, depth, num_classes=1, num_filters=32, kernel_size=3):
     """ResNet Version 1 Model builder [a]
 
     Stacks of 2 x (3 x 3) Conv2D-BN-ReLU
@@ -109,19 +110,18 @@ def resnet_v1(input_shape, depth, num_classes=1):
     if (depth-2)%6 != 0:
         raise ValueError('depth should be 6n+2')
     # Start model definition.
-    num_filters = 32
     num_res_blocks = int((depth-2)/6)
     
     inputs = tf.keras.Input(shape=input_shape)
-    x = resnet_layer(inputs, num_filters)
+    x = resnet_layer(inputs, num_filters, kernel_size=kernel_size)
     # Instantiate teh stack of residual units
     for stack in range(3):
         for res_block in range(num_res_blocks):
             strides = 1
             if stack > 0 and res_block == 0: # first layer but not first stack
                 strides = 2 # downsample
-            y = resnet_layer(x, num_filters, strides=strides)  
-            y = resnet_layer(y, num_filters, activation=None)
+            y = resnet_layer(x, num_filters, kernel_size=kernel_size, strides=strides)  
+            y = resnet_layer(y, num_filters, kernel_size=kernel_size, activation=None)
             
             if stack > 0 and res_block == 0: # first layer but not first stack
                 # linear projection residual shortcut connection to match
@@ -136,15 +136,16 @@ def resnet_v1(input_shape, depth, num_classes=1):
     # v1 does not use BN after last shortcut connection-ReLU
     ax = layers.GlobalAveragePooling2D()(x)
     #ax = layers.GlobalMaxPool2D()(x)
-    #x = layers.AveragePooling2D()(x)
     
     ax = layers.Dense(num_filters//8, activation='relu')(ax)
     ax = layers.Dense(num_filters//2, activation='softmax')(ax)
     ax = layers.Reshape((1,1,num_filters//2))(ax)
     ax = layers.Multiply()([ax, x])
-    y = layers.Flatten()(ax)
-    outputs = layers.Dense(num_classes, activation='sigmoid',
-                           kernel_initializer='he_normal')(y)
+    
+    ax = layers.Flatten()(ax)
+    ax = layers.Dropout(0.1)(ax)
+    outputs = layers.Dense(num_classes, activation='softmax')(ax)
+    
     # Instantiate model
     model = Model(inputs=inputs, outputs=outputs)
     return model
@@ -252,32 +253,29 @@ def resnet_v2(input_shape, depth, num_classes=10, pool_size=8):
     return model 
     
 nr40 = ['data/slec_{}_40.fasta'.format(i) for i in range(1,8)]
+#nr60 = ['data/slec_{}_60.fasta'.format(i) for i in range(4,8)]
 prot_seqs, prot_labels = readSLEnzyme(nr40)
 seqs, labels = [], []
 for key in prot_seqs.keys():
     seqs.append(prot_seqs[key])
     labels.append(prot_labels[key])
-x = np.ndarray(shape=(len(seqs), 21, 21, 2))  
+x = np.ndarray(shape=(len(seqs), 21, 42, 1))  
     
-x[:,:,:,0] = DAA_chaosGraph(seqs)
-x[:,:,:,1] = daa(seqs)
+x[:,:,:21,0] = DAA_chaosGraph(seqs)
+x[:,:,21:,0] = daa(seqs)
         
 y = np.array(labels)
-
-by = (y==0).astype(int)
- 
-(X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x, by, random_state=42)
-#x = x.reshape((-1,21,21,1))
+(X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf) = load_Kf_data(x, y, random_state=42)
 lr = 0.001
 k = 0
-num_classes = 1
+num_classes = 7
 y_pred = np.zeros((0, num_classes))
-y_true = np.zeros((0, ))
+y_true = np.zeros((0, num_classes))
 
 #sm = SMOTE(sampling_strategy='not majority')
 #oss = OneSidedSelection('majority', random_state=42)
 #rus = RandomUnderSampler(random_state=42)
-for k in range(5):
+for k in range(1):
     x_train, x_test = X_train_Kf[k], X_test_Kf[k]
     y_train, y_test = y_train_Kf[k], y_test_Kf[k]
     
@@ -288,16 +286,22 @@ for k in range(5):
     #x_train = x_res.reshape((-1, 21,21,2))
     #y_train = to_categorical(y_res, num_classes)
     
-    #y_train = to_categorical(y_train, num_classes)
-    #y_test = to_categorical(y_test, num_classes)
-    
+    my_class_weight = compute_class_weight('balanced',np.unique(y_train),y_train).tolist()
+    class_weight_dict = dict(zip([x for x in np.unique(y_train)], my_class_weight))
+
+    y_train = to_categorical(y_train, num_classes)
+    y_test = to_categorical(y_test, num_classes)
+        
     tf.keras.backend.clear_session()
-    model = resnet_v1(input_shape=(21, 21, 2), depth=20, num_classes=num_classes)
+    model = resnet_v1(input_shape=(21, 42, 1), depth=20, 
+                      num_classes=num_classes,
+                      num_filters=64,
+                      kernel_size=5)
     model.summary()
-    modelfile = './model/slec/weights-slec-biset-{}.h5'.format(k)
+    modelfile = './model/slec/weights-slec-{}.h5'.format(k)
    
     model.compile(optimizer=Adam(learning_rate=lr),
-         loss='binary_crossentropy',
+         loss='categorical_crossentropy',
          metrics=['accuracy'])
 
     lr_decay = LearningRateScheduler(schedule=lambda epoch: lr * (0.9 ** epoch))
@@ -306,27 +310,29 @@ for k in range(5):
                                    save_best_only=True, 
                                    save_weights_only=True, 
                                    verbose=1)
-    #weight = np.sum(y_train, axis=0)
-    #weight = np.max(weight)/weight
     
-    model.fit(x_train, y_train,
+    x_train, y_train = shuffle(x_train, y_train)
+    history = model.fit(x_train, y_train,
               batch_size=100,
-              epochs=10,
-              class_weight={1:1, 0:0.17},
+              epochs=20,
               validation_data=[x_test, y_test],
-              callbacks=[checkpoint, lr_decay])
+              class_weight=class_weight_dict,
+              callbacks=[checkpoint])
     
-    model.load_weights(modelfile)
+    #model.load_weights(modelfile)
     pred = model.predict(x_test)
     k += 1
     y_pred = np.concatenate((y_pred, pred))
     y_true = np.concatenate((y_true, y_test))
 
+from tools import plot_history
+plot_history(history)
+
 with open('sl_result.txt', 'a') as fw:
-    #y_t = np.argmax(y_true,axis=1)
-    #y_p = np.argmax(y_pred,axis=1)
-    y_p = (y_pred > 0.5).astype(int)
-    y_t = y_true
+    y_t = np.argmax(y_true,axis=1)
+    y_p = np.argmax(y_pred,axis=1)
+    #y_p = (y_pred > 0.5).astype(int)
+    #y_t = y_true
     cm=confusion_matrix(y_t, y_p)
     for i in range(num_classes):
             for j in range(num_classes):

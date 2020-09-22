@@ -19,7 +19,7 @@ import numpy as np
 
 from sklearn.metrics import accuracy_score, matthews_corrcoef, confusion_matrix
 from sklearn.metrics import f1_score,roc_auc_score,recall_score,precision_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 
 def PrimaryCap(inputs, dim_vector, n_channels, kernel_size, strides, padding):
     output = layers.Conv2D(filters=dim_vector*n_channels, kernel_size=kernel_size,
@@ -297,16 +297,21 @@ def classify_slec_bi(lr=0.001, random_state=143):
     return y_pred
 
 def classify_ec(lr=0.001):
-    row, col, channels = 21, 21, 1
+    row, col, channels = 21, 21, 30
     num_classes = 2
     metricsFile = 'result.txt'
-    x, y = load_data()
+    x, y = load_data(vers=2, r=channels)
+    
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=259)
-    
-    x_train = x_train.reshape((-1, row, col, channels))
+    """sss = StratifiedShuffleSplit(n_splits=2, test_size=0.2, random_state=0)
+    for train_index, test_index in sss.split(x, y):
+        print("TRAIN:", len(train_index), "TEST:", len(test_index))
+        x_train, x_test = x[train_index], x[test_index]
+        y_train, y_test = y[train_index], y[test_index]"""
+    #x_train = x_train.reshape((-1, row, col, channels))
     y_train = to_categorical(y_train, num_classes=2)
-    
-    x_test = x_test.reshape((-1, row, col, channels))
+    y_test = to_categorical(y_test, num_classes=2)
+    #x_test = x_test.reshape((-1, row, col, channels))
     
     model = resnet_v1(input_shape=(row, col, channels), depth=20, num_classes=num_classes)
     model.summary()
@@ -321,25 +326,29 @@ def classify_ec(lr=0.001):
                                            save_best_only=True, 
                                            save_weights_only=True, 
                                            verbose=1)
-    model.fit(x_train, y_train,
-              batch_size=50,
-              epochs=10,
-              validation_split=0.1,
+    history = model.fit(x_train, y_train,
+              batch_size=32,
+              epochs=20,
+              validation_data=(x_test, y_test),
               callbacks=[checkpoint, lr_decay])
     
     model.load_weights(modelfile)
-    pred = model.predict(x_test, batch_size=50)
+    pred = model.predict(x_test, batch_size=100)
     
     noteInfo = "\npredict EC and Not EC:"
-    #y_true = np.argmax(y_test, 1)
+    y_true = np.argmax(y_test, 1)
     y_pred = np.argmax(pred, 1)
-    cm = confusion_matrix(y_test, y_pred)
+    
+    from tools import displayMetrics, plot_history
+    plot_history(history)
+    displayMetrics(y_true, y_pred)
+    cm = confusion_matrix(y_true, y_pred)
     with open(metricsFile, 'a') as fw:
         fw.write(noteInfo + "\n")
         for i in range(2):
             fw.write(str(cm[i,0]) + '\t' + str(cm[i,1]) + '\n')
-        fw.write("ACC:%f\n"%accuracy_score(y_test, y_pred))
-        fw.write("MCC:%f\n"%matthews_corrcoef(y_test, y_pred))
+        fw.write("ACC:%f\n"%accuracy_score(y_true, y_pred))
+        fw.write("MCC:%f\n"%matthews_corrcoef(y_true, y_pred))
         
 def classify_ML_SL_ec(lr=0.001):
     row, col, channels = 21, 21, 1

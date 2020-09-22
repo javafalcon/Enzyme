@@ -288,3 +288,151 @@ hamming loss = 0.09431314387777884
 subset accuracy = 0.5999106943514178
 macro average precision_score: 0.6101704503887342
 micro average precisioin_score: 0.6725054359242414
+
+--- use 4479 dataset by binary corssentropy---
+kernel_size: 5
+num_filters: 32
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.03039271485486625
+subset accuracy = 0.8620185922974768
+macro average precision_score: 0.891177329177755
+micro average precisioin_score: 0.8831768735923922
+
+--- use 4479 dataset by binary corssentropy---
+kernel_size: 5
+num_filters: 32
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.06819124166746404
+subset accuracy = 0.7113194909578031
+macro average precision_score: 0.6316376782448389
+micro average precisioin_score: 0.758030734644776
+
+--- use 4479 dataset by using weight binary crossentropy---
+kernel_size: 5
+num_filters: 32
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.08480847127866552
+subset accuracy = 0.6287117660192008
+macro average precision_score: 0.6444881206633971
+micro average precisioin_score: 0.7027752638577599
+
+--- use 4479 dataset by binary corssentropy---
+kernel_size: 5
+num_filters: 64
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.061525212898287246
+subset accuracy = 0.7182406787229292
+macro average precision_score: 0.6757448654870322
+micro average precisioin_score: 0.7805377554030487
+
+--- use 4479 dataset by binary corssentropy---
+kernel_size: 5
+num_filters: 64
+num_classes: 7
+dropout: 0.25
+hamming loss = 0.42924122093579564
+subset accuracy = 0.008260772493860237
+macro average precision_score: 0.22843214710328708
+micro average precisioin_score: 0.25882306568455116
+
+kf-1: maxlen=500, post padding
+hamming loss = 0.2007936507936508
+subset accuracy = 0.4111111111111111
+macro average precision_score: 0.31473503978459216
+micro average precisioin_score: 0.5240386247157451
+kf-1: maxlen=500, pre padding
+hamming loss = 0.21428571428571427
+subset accuracy = 0.4
+macro average precision_score: 0.29047619047619044
+micro average precisioin_score: 0.5040593286494925
+kf-1: maxlen=600, post padding
+hamming loss = 0.20396825396825397
+subset accuracy = 0.4222222222222222
+macro average precision_score: 0.31554674676711175
+micro average precisioin_score: 0.5214932623581421
+kf-1: maxlen=600, pre padding
+hamming loss = 0.20476190476190476
+subset accuracy = 0.31666666666666665
+macro average precision_score: 0.30609018471959126
+micro average precisioin_score: 0.5087844974055196
+kf-1: maxlen=700, post padding
+hamming loss = 0.20793650793650795
+subset accuracy = 0.39444444444444443
+macro average precision_score: 0.31969481965743834
+micro average precisioin_score: 0.5143916894535083
+kf-1: maxlen=700, pre padding
+hamming loss = 0.2015873015873016
+subset accuracy = 0.38333333333333336
+macro average precision_score: 0.3008567703482958
+micro average precisioin_score: 0.5207129846474109
+kf-1: maxlen=800, post padding
+hamming loss = 0.20634920634920634
+subset accuracy = 0.4
+macro average precision_score: 0.3246561536889442
+micro average precisioin_score: 0.5175850030358228
+kf-1: maxlen=800, pre padding
+hamming loss = 0.21428571428571427
+subset accuracy = 0.4
+macro average precision_score: 0.29047619047619044
+micro average precisioin_score: 0.5040593286494925
+kf-1: maxlen=900, post padding
+hamming loss = 0.2126984126984127
+subset accuracy = 0.35
+macro average precision_score: 0.32693447591845437
+micro average precisioin_score: 0.5053255533944615
+kf-1: maxlen=900, pre padding
+hamming loss = 0.2015873015873016
+subset accuracy = 0.32222222222222224
+macro average precision_score: 0.31734262135088065
+micro average precisioin_score: 0.5166022720909627
+kf-1: ensember classifier performance
+hamming loss = 0.1992063492063492
+subset accuracy = 0.4111111111111111
+macro average precision_score: 0.3162394346286818
+micro average precisioin_score: 0.526460248424116
+
+Xiao's dataset, kf-1: maxlen=500, post padding
+hamming loss = 0.12436224489795919
+subset accuracy = 0.47098214285714285
+macro average precision_score: 0.33392421985969556
+micro average precisioin_score: 0.5730414999823377
+
+Xiao's dataset, kf-1: maxlen=800, post padding
+hamming loss = 0.12691326530612246
+subset accuracy = 0.43973214285714285
+macro average precision_score: 0.3284876312041139
+micro average precisioin_score: 0.5725679282745711
+
+Xiao's dataset, kf-2: maxlen=800, post padding
+hamming loss = 0.09933035714285714
+subset accuracy = 0.5736607142857143
+macro average precision_score: 0.3967306243467016
+micro average precisioin_score: 0.652225109425306
+
+Xiao's dataset, kf-3: maxlen=800, post padding
+hamming loss = 0.12388392857142858
+subset accuracy = 0.48214285714285715
+macro average precision_score: 0.3543230149974156
+micro average precisioin_score: 0.5826448894576431
+
+Xiao's dataset, kf-4: maxlen=800, post padding
+hamming loss = 0.11814413265306123
+subset accuracy = 0.49776785714285715
+macro average precision_score: 0.34933998152710843
+micro average precisioin_score: 0.5903149806917996
+
+Xiao's dataset, kf-5: maxlen=800, post padding
+hamming loss = 0.1372705506783719
+subset accuracy = 0.4324022346368715
+macro average precision_score: 0.2907993764650937
+micro average precisioin_score: 0.5337627855165528
+
+Xiao's dataset,Total predict performance
+hamming loss = 0.12110483845246069
+subset accuracy = 0.48515293592319714
+macro average precision_score: 0.34130248861882617
+micro average precisioin_score: 0.5856983030172745

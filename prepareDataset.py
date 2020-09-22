@@ -10,10 +10,10 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
 import numpy as np
-from SeqFormulate import DAA_chaosGraph
+from SeqFormulate import cor_chaosGraph, DAA_chaosGraph, corr_onehot
 from sklearn.model_selection import StratifiedKFold
 from sklearn.utils import shuffle
-
+import random
 nr40 = ['data/slec_{}_40.fasta'.format(i) for i in range(1,8)]
 nr60 = ['data/slec_{}_60.fasta'.format(i) for i in range(1,8)]
 nr80 = ['data/slec_{}_80.fasta'.format(i) for i in range(1,8)]
@@ -72,7 +72,7 @@ def readSLEnzyme(files):
     prot_seqs = {}
     prot_labels = {}
 
-    for i in range(7):
+    for i in range(len(files)):
          for seq_record in SeqIO.parse(files[i], 'fasta'):
             if len(str(seq_record.seq)) < 50:
                 continue
@@ -112,7 +112,7 @@ def readMLEnzyme():
             seqid = seqid[1]
 
             if seqid in prot_seqs.keys():
-                # The protein has multi-lables, so remove it from protein dict
+                # The protein has multi-lables, so add its label
                 MLEC_seqs[seqid] = str(seq_record.seq)
                 t = MLEC_labels.get(seqid, prot_labels[seqid])
                 t[i] = 1
@@ -156,7 +156,7 @@ def load_ML_SL_EC_data():
         mlec_seqs.append(str(seq_record.seq))
     mlec_x = DAA_chaosGraph(mlec_seqs)
 
-    slec_seqs, _ = readSLEnzyme()
+    slec_seqs, _ = readSLEnzyme(nr40)
     slec_x = DAA_chaosGraph(slec_seqs)
     slec_x = shuffle(slec_x)
     x = np.concatenate((slec_x[:5000], mlec_x))  
@@ -182,15 +182,111 @@ def load_mlec_nr(nr=80):
     y = np.array(labels)
     return x, y
 
-def load_data():
-    ec_seqs, ec_labels = readSLEnzyme(nr40)
-    not_ec = getNotEnzyme(27907, random_state=42)
-    pos_x = DAA_chaosGraph(ec_seqs)
-    neg_x = DAA_chaosGraph(not_ec)
-    x = np.concatenate((pos_x, neg_x))
-    y = np.zeros((len(x),))
-    y[:len(pos_x)] = 1
-    return x, y
+def gen_bag_inst(seq, k, num_inst=10):
+    """
+    生成num_inst个长度为k的蛋白质序列片段
+
+    Parameters
+    ----------
+    seq : str
+        蛋白质序列.
+    k : int
+        子序列片段的长度.
+    num_inst : int
+        子序列的个数.
+
+    Returns
+    -------
+    list.
+
+    """
+    seqs = []
+    if len(seq) < k:
+        for _ in range(num_inst):
+            seqs.append(seq)
+        
+    else:
+        seqs.append( seq[:k])
+        seqs.append( seq[-k:])
+        w = len(seq) - k
+        for _ in range(num_inst-2):
+            start = random.randint(0, w)
+            seqs.append( seq[start:start+k])
+    return seqs      
+    
+def load_MIML(nr=90, fragLen=100, num_inst=10):
+    mlec_seqs, mlec_labels = readMLEnzyme()
+    seq_bags, seq_labels = [], []
+    
+    X = []
+    for seq_record in SeqIO.parse('data/mlec_{}.fasta'.format(nr), 'fasta'):
+        s = seq_record.id
+        pid = s.split(' ')
+        protId = pid[0]
+         
+        seq_bags = gen_bag_inst(mlec_seqs[protId], k=fragLen, num_inst=num_inst)
+        x = DAA_chaosGraph(seq_bags)
+        
+        X.append(x)
+        seq_labels.append(mlec_labels[protId])
+        
+    X = np.array(X)
+    y = np.array(seq_labels)
+    
+    return X, y
+
+def load_MISL(files, fragLen=100, num_inst=10):
+    prot_seqs, prot_labels = readSLEnzyme(files)
+    seq_bags, seq_labels = [], []
+    X = []
+    for key in prot_seqs.keys():
+        seq_bags = gen_bag_inst(prot_seqs[key], k=fragLen, num_inst=num_inst)
+        x = DAA_chaosGraph(seq_bags)
+        
+        X.append(x)
+        seq_labels.append(prot_labels[key])
+        
+    X = np.array(X)
+    y = np.array(seq_labels)
+    
+    return X, y
+
+def load_data(vers=1, r=1):
+    if vers == 1:
+        ec_seqs, ec_labels = readSLEnzyme(nr40)
+        not_ec = getNotEnzyme(27907, random_state=42)
+        pos_x = DAA_chaosGraph(list(ec_seqs.values()))
+        neg_x = DAA_chaosGraph(not_ec)
+        x = np.concatenate((pos_x, neg_x))
+        y = np.zeros((len(x),))
+        y[:len(pos_x)] = 1
+        x, y = shuffle(x, y)
+        return x, y
+    elif vers == 2:
+        seq_records = SeqIO.parse('data/EC_40.fasta', 'fasta')
+        seq_records = shuffle(list(seq_records), random_state=42)
+        Enzyme_seqs = []
+        for seq_record in seq_records:
+            if 5000 >= len(str(seq_record.seq)) >= 50 :
+                Enzyme_seqs.append(str(seq_record.seq))
+              
+        seq_records = SeqIO.parse('data/NotEC_40.fasta', 'fasta')
+        seq_records = shuffle(list(seq_records), random_state=42)
+        notEnzyme_seqs = []
+        for seq_record in seq_records:
+            if 5000 >= len(str(seq_record.seq)) >= 50:
+                notEnzyme_seqs.append(str(seq_record.seq))
+        notEnzyme_seqs = notEnzyme_seqs[:len(Enzyme_seqs)]
+        
+        seqs = Enzyme_seqs + notEnzyme_seqs
+        labels = [1 for i in range(len(Enzyme_seqs))] + [0 for i in range(len(notEnzyme_seqs))]
+        x = corr_onehot(seqs,r)
+        y = np.array(labels)
+        #pos_x = DAA_chaosGraph(Enzyme_seqs)
+        #neg_x = DAA_chaosGraph(notEnzyme_seqs)
+        x, y = shuffle(x, y)
+        
+        return x, y
 
 def load_Kf_data(X, y, kfold=5, random_state=None):
     X_train_Kf, y_train_Kf = [], []
@@ -229,12 +325,48 @@ def load_Kf_data_with_weight(X, y, weight, kfold=5, random_state=None):
     return (X_train_Kf, y_train_Kf), (X_test_Kf, y_test_Kf), weight_Kf
 
 def statInfo():
-    for i in range(7):
-        print("{}: nr40: {}".format(i, len(list(SeqIO.parse(nr40[i], 'fasta')))))
-        print("{}: nr60: {}".format(i, len(list(SeqIO.parse(nr60[i], 'fasta')))))
-        print("{}: nr80: {}".format(i, len(list(SeqIO.parse(nr80[i], 'fasta')))))
-        print("{}: nr100: {}".format(i, len(list(SeqIO.parse(nr100[i], 'fasta')))))
+    seq_records = SeqIO.parse('data/EC_40.fasta', 'fasta')
+    Enzyme_seqs = []
+    for seq_record in seq_records:
+        if len(str(seq_record.seq)) >= 50:
+            Enzyme_seqs.append(str(seq_record.seq))
+            
+    leninfo = {}
+    for seq in Enzyme_seqs:
+        k = len(seq)//100
+        leninfo[ k] = leninfo.get(k, 0) + 1
+        
+    return leninfo
+   
 if __name__ == "__main__": 
+    """
+    with open('data/2.txt', 'r') as fr:
+        # lines[0]: Enzymes; lines[1]: Non enzyme
+        lines = fr.readlines()
+    data, target = readAllEnzymeSeqsML()
+    protAccs = lines[1].split()
+    enzymes = {}
+    count = 0
+    for i in range(3, len(protAccs)):
+        key = protAccs[i]
+        if key in data.keys():
+            enzymes[key] = target[key]
+        else:
+            count += 1
+            print("\rnot enzymes: {}".format(count))
+    """
+    '''
+    from Bio import ExPASy
+    from Bio import SwissProt
+    accession = 'Q5XIZ6'
+    handle=ExPASy.get_sprot_raw(accession) 
+    record=SwissProt.parse(handle)
+    try:
+        record = SwissProt.read(handle)
+    except:
+        print("WARNING: Accession %s not found" % accession)
+    '''
+    
     #statInfo()
     #data, target = readAllEnzymeSeqsML()
     #writeSLEC(data, target)
@@ -251,6 +383,7 @@ if __name__ == "__main__":
             print("{} has not multi-label".format(seqid))
     '''
     
+    '''
     MLECseqs, MLEClabels = readMLEnzyme()
     lenstat = {}
     for key in MLECseqs.keys():
@@ -263,7 +396,7 @@ if __name__ == "__main__":
     for i in range(10):
         item = items[i]
         print("{0:<6}{1:>5}".format(item[0],item[1]))
-    
+    '''
     
     '''
     seq_records = []
@@ -281,7 +414,7 @@ if __name__ == "__main__":
             print("{}:{}'s length is less than 50".format(count,key))
     '''
     
-    
+    '''
     # 统计各个长度段序列数
     items.sort(key=lambda x:x[0]) 
     statlen = np.zeros((7,))
@@ -300,6 +433,11 @@ if __name__ == "__main__":
             statlen[5] += 1
         else:
             statlen[6] += 1
-       
+    '''
+    
+    leninfo = statInfo()
+    lenitems = leninfo.items()
+    sorted(lenitems, key=lambda x: x[0])
+    
     
         
