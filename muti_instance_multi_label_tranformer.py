@@ -50,36 +50,39 @@ class MITransformerModel(Model):
     def __init__(self, n_layers=4, embed_dim=8, num_heads=2, ff_dim=64,
                  vocab_size=22, maxlen=100, droprate=0.2, num_fragment=5):
         super(MITransformerModel, self).__init__()
-        self.padding_mask = create_padding_mask()
+        #self.padding_mask = create_padding_mask()
         self.encoder = Encoder(n_layers=n_layers, d_model=embed_dim, n_heads=num_heads, ffd=ff_dim,
             input_vocab_size=vocab_size, max_seq_len=maxlen, dropout_rate=droprate)
         self.gp = layers.GlobalAveragePooling1D()
         self.dp = layers.Dropout(0.2)
         self.d1 = layers.Dense(128, activation="relu")
         self.d2 = layers.Dense(7, activation="sigmoid")
-        self.d3 = layers.Dense(7, activatioin="sigmoid")
+        self.d3 = layers.Dense(7, activation="sigmoid")
         self.maxlen = maxlen
         self.num_fragment = num_fragment
     def call(self, seq):
         seq_frags = multi_instances_split(seq, num_fragment=self.num_fragment)
         flag = True
         
-        for i in range(self.num_fragment):
-            x = protseq_to_vec(seq_frags[i], maxlen=self.maxlen)
-            mask = self.padding_mask(x)
-            x = self.encoder(x, True, mask)
+        for j in range(self.num_fragment):
+            t = []
+            for i in range(len(seq)):
+                t.append(seq_frags[i][j])
+            
+            x = protseq_to_vec(t, maxlen=self.maxlen)
+            mask = create_padding_mask(x[0])
+            x = self.encoder(x[0], True, mask)
             x = self.gp(x)
             x = self.dp(x)
             x = self.d1(x)
             x = self.d2(x)
-            
             if flag:
                 out = x
                 flag = False
             else:
                 out = layers.Concatenate()([out, x])
         
-        out = self.d3()(out)
+        out = self.d3(out)
         return out
 
 def loss(model, x, y):
@@ -92,7 +95,7 @@ def grad(model, inputs, targets):
         loss_value = loss(model, inputs, targets)
     return loss_value, tape.gradient(loss_value, model.trainable_variables)
 
-def train(model, train_dataset, maxlen=100, num_epochs=20):
+def train(model, dataset, maxlen=100, num_epochs=20):
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
     train_loss_results = []
     train_accuracy_results = []
@@ -100,7 +103,7 @@ def train(model, train_dataset, maxlen=100, num_epochs=20):
         epoch_loss_avg = tf.keras.metrics.Mean()
         epoch_accuracy = tf.keras.metrics.CategoricalAccuracy()
         
-        for seq, y in train_dataset:
+        for seq, y in dataset:
             loss_value, grads = grad(model, seq, y)
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
             
@@ -115,7 +118,11 @@ def train(model, train_dataset, maxlen=100, num_epochs=20):
                                                                 epoch_loss_avg.result(),
                                                                 epoch_accuracy.result()))
         
-seqs, labels = load_mlec_nr(firstly_load=True)  
-labels = tf.keras.utils.to_categorical(labels, num_classes=7) 
+seqs, labels = load_mlec_nr(firstly_load=False)
+labels = np.array(labels)  
+dataset = tf.data.Dataset.from_tensor_slices((seqs, labels))
+dataset = dataset.shuffle(100).batch(32)
+
 model = MITransformerModel()
-train(model, (seqs, labels))
+
+train(model, dataset)
