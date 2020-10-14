@@ -8,7 +8,6 @@ import os
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
-from Bio.Alphabet import IUPAC
 import numpy as np
 from SeqFormulate import cor_chaosGraph, DAA_chaosGraph, corr_onehot
 from sklearn.model_selection import StratifiedKFold
@@ -60,7 +59,7 @@ def writeSLEC(data, target):
     # write into files
     seq_records_ls = [[] for i in range(7)]
     for key in SLEC_seqs.keys():
-        seq_record = SeqRecord(Seq(SLEC_seqs[key], IUPAC.protein), id=key)
+        seq_record = SeqRecord(Seq(SLEC_seqs[key]), id=key)
         seq_records_ls[SLEC_labels[key]].append(seq_record)
     
     for i in range(7):

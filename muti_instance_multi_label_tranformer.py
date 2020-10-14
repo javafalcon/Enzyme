@@ -17,12 +17,13 @@ from tensorflow.keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 from tensorflow.keras.callbacks import ModelCheckpoint
 from sklearn.utils import shuffle
 from sklearn.model_selection import KFold
-from skmultilearn.model_selection import IterativeStratification
 from sklearn import metrics
 import scipy.io as sio
+from nlp_transformer import Encoder, create_padding_mask
+from prepare_seq import multi_instances_split, protseq_to_vec
 
 
-def load_mlec_nr(nrfile='data/melc_40.fasta', npzfile='melc_nr40.npz', description=False, firstly_load=False):
+def load_mlec_nr(nrfile='data/mlec_40.fasta', npzfile='mlec_nr40.npz', description=False, firstly_load=False):
     if firstly_load:
         mlec_seqs, mlec_labels = readMLEnzyme()
         seqs, labels = [], []
@@ -38,23 +39,83 @@ def load_mlec_nr(nrfile='data/melc_40.fasta', npzfile='melc_nr40.npz', descripti
             seqs.append(mlec_seqs[protId])
             labels.append(mlec_labels[protId])
         
-        np.save(npzfile, seqs=seqs, labels=labels)
+        np.savez(npzfile, seqs=seqs, labels=labels)
     else:
         data = np.load(npzfile, allow_pickle=True)
         seqs, labels = data['seqs'], data['labels']
     
     return seqs, labels
 
-def model(embed_dim=16, num_heads=4, ff_dim=128, vocab_size=21, maxlen=100):
-    inputs = layers.Input(shape=(maxlen,))
+class MITransformerModel(Model):
+    def __init__(self, n_layers=4, embed_dim=8, num_heads=2, ff_dim=64,
+                 vocab_size=22, maxlen=100, droprate=0.2, num_fragment=5):
+        super(MITransformerModel, self).__init__()
+        self.padding_mask = create_padding_mask()
+        self.encoder = Encoder(n_layers=n_layers, d_model=embed_dim, n_heads=num_heads, ffd=ff_dim,
+            input_vocab_size=vocab_size, max_seq_len=maxlen, dropout_rate=droprate)
+        self.gp = layers.GlobalAveragePooling1D()
+        self.dp = layers.Dropout(0.2)
+        self.d1 = layers.Dense(128, activation="relu")
+        self.d2 = layers.Dense(7, activation="sigmoid")
+        self.d3 = layers.Dense(7, activatioin="sigmoid")
+        self.maxlen = maxlen
+        self.num_fragment = num_fragment
+    def call(self, seq):
+        seq_frags = multi_instances_split(seq, num_fragment=self.num_fragment)
+        flag = True
+        
+        for i in range(self.num_fragment):
+            x = protseq_to_vec(seq_frags[i], maxlen=self.maxlen)
+            mask = self.padding_mask(x)
+            x = self.encoder(x, True, mask)
+            x = self.gp(x)
+            x = self.dp(x)
+            x = self.d1(x)
+            x = self.d2(x)
+            
+            if flag:
+                out = x
+                flag = False
+            else:
+                out = layers.Concatenate()([out, x])
+        
+        out = self.d3()(out)
+        return out
 
-    encode_padding_mask = create_padding_mask(inputs)
-    encoder = Encoder(n_layers=4, d_model=embed_dim, n_heads=num_heads, ffd=ff_dim,
-            input_vocab_size=vocab_size, max_seq_len=maxlen, dropout_rate=0.2)
-    x = encoder(inputs, False, encode_padding_mask)
+def loss(model, x, y):
+    y_ = model(x)
+    loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+    return loss_object(y_true=y, y_pred=y_)  
+  
+def grad(model, inputs, targets):
+    with tf.GradientTape() as tape:
+        loss_value = loss(model, inputs, targets)
+    return loss_value, tape.gradient(loss_value, model.trainable_variables)
 
-    x = layers.GlobalAveragePooling1D()(x)
-    x = layers.Dropout(0.2)(x)
-    x = layers.Dense(256, activation="relu")(x)
-    x = layers.Dropout(0.2)(x)
-    outputs = layers.Dense(7, activation="sigmoid")(x)
+def train(model, train_dataset, maxlen=100, num_epochs=20):
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
+    train_loss_results = []
+    train_accuracy_results = []
+    for epoch in range(num_epochs):
+        epoch_loss_avg = tf.keras.metrics.Mean()
+        epoch_accuracy = tf.keras.metrics.CategoricalAccuracy()
+        
+        for seq, y in train_dataset:
+            loss_value, grads = grad(model, seq, y)
+            optimizer.apply_gradients(zip(grads, model.trainable_variables))
+            
+            epoch_loss_avg(loss_value)
+            epoch_accuracy(y, model(seq))
+        
+        train_loss_results.append(epoch_loss_avg.result())
+        train_accuracy_results.append(epoch_accuracy.result())
+        
+        if epoch % 2 == 0:
+            print("Epoch {:03d}: Loss: {:.3f}, Accuracy: {:.3%}".format(epoch,
+                                                                epoch_loss_avg.result(),
+                                                                epoch_accuracy.result()))
+        
+seqs, labels = load_mlec_nr(firstly_load=True)  
+labels = tf.keras.utils.to_categorical(labels, num_classes=7) 
+model = MITransformerModel()
+train(model, (seqs, labels))
