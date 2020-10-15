@@ -70,8 +70,8 @@ class MITransformerModel(Model):
                 t.append(seq_frags[i][j])
             
             x = protseq_to_vec(t, maxlen=self.maxlen)
-            mask = create_padding_mask(x[0])
-            x = self.encoder(x[0], True, mask)
+            mask = create_padding_mask(x)
+            x = self.encoder(x, True, mask)
             x = self.gp(x)
             x = self.dp(x)
             x = self.d1(x)
@@ -120,9 +120,24 @@ def train(model, dataset, maxlen=100, num_epochs=20):
         
 seqs, labels = load_mlec_nr(firstly_load=False)
 labels = np.array(labels)  
-dataset = tf.data.Dataset.from_tensor_slices((seqs, labels))
-dataset = dataset.shuffle(100).batch(32)
+N = len(seqs)
+y_pred = np.ndarray(shape=(0,7))
+y_true = np.ndarray(shape=(0,7))
+for i in range(N):
+    train_index = [True]*N
+    train_index[i] = False
+    train_seqs, train_labels = seqs[train_index], labels[train_index]
+    test_seqs, test_labels = [seqs[i]], labels[i]
+    test_seqs = np.array(test_seqs)
+    test_labels = test_labels[np.newaxis,:]
+    
+    dataset = tf.data.Dataset.from_tensor_slices((train_seqs, train_labels))
+    dataset = dataset.shuffle(100).batch(32)
 
-model = MITransformerModel()
+    model = MITransformerModel()
 
-train(model, dataset)
+    train(model, dataset)
+    y_ = model(test_seqs)
+    y_pred = np.concatenate((y_pred, y_))
+    y_ture = np.concatenate((y_true, test_labels))
+    
