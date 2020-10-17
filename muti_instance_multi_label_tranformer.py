@@ -21,7 +21,7 @@ from sklearn import metrics
 import scipy.io as sio
 from nlp_transformer import Encoder, create_padding_mask
 from prepare_seq import multi_instances_split, protseq_to_vec
-
+from tools import displayMLMetrics
 
 def load_mlec_nr(nrfile='data/mlec_40.fasta', npzfile='mlec_nr40.npz', description=False, firstly_load=False):
     if firstly_load:
@@ -46,6 +46,40 @@ def load_mlec_nr(nrfile='data/mlec_40.fasta', npzfile='mlec_nr40.npz', descripti
     
     return seqs, labels
 
+class MILSTMModel(Model):
+    def __init__(self, maxlen=100, num_fragment=5):
+        super(MILSTMModel, self).__init__()
+        self.num_fragment = num_fragment
+        self.maxlen = maxlen
+        self.embd = layers.Embedding(24, 10)
+        self.brnn = layers.Bidirectional(layers.LSTM(10))
+        self.d1 = layers.Dense(64, activation='relu')
+        self.dp = layers.Dropout(0.5)
+        self.d2 = layers.Dense(7, activation='relu')
+    def call(self, seq):
+        seq_frags = multi_instances_split(seq, num_fragment=self.num_fragment)
+        flag = True
+        
+        for j in range(self.num_fragment):
+            t = []
+            for i in range(len(seq)):
+                t.append(seq_frags[i][j])
+                x = protseq_to_vec(t, maxlen=self.maxlen)
+            x = self.embd(x)
+            x = self.brnn(x)
+            x = self.d1(x)
+            x = self.dp(x)
+            x = self.d2(x)
+            
+            if flag:
+                out = x
+                flag = False
+            else:
+                out = layers.Concatenate()([out, x])
+            
+            out = layers.Dense(7, activation='sigmoid')(out)
+            return out
+        
 class MITransformerModel(Model):
     def __init__(self, n_layers=4, embed_dim=8, num_heads=2, ff_dim=64,
                  vocab_size=22, maxlen=100, droprate=0.2, num_fragment=5):
@@ -118,7 +152,8 @@ def train(model, dataset, maxlen=100, num_epochs=20):
                                                                 epoch_loss_avg.result(),
                                                                 epoch_accuracy.result()))
         
-seqs, labels = load_mlec_nr(firstly_load=False)
+#seqs, labels = load_mlec_nr(firstly_load=False)
+seqs, labels = load_mlec_nr(nrfile='data/mlec_90.fasta', npzfile='mlec_nr90.npz')
 labels = np.array(labels)  
 N = len(seqs)
 y_pred = np.ndarray(shape=(0,7))
@@ -134,10 +169,13 @@ for i in range(N):
     dataset = tf.data.Dataset.from_tensor_slices((train_seqs, train_labels))
     dataset = dataset.shuffle(100).batch(32)
 
-    model = MITransformerModel()
-
+    #model = MITransformerModel()
+    model = MILSTMModel(maxlen=100,num_fragment=8)
+    
     train(model, dataset)
     y_ = model(test_seqs)
     y_pred = np.concatenate((y_pred, y_))
     y_ture = np.concatenate((y_true, test_labels))
-    
+    print("{} predicted:{}".format(i,y_pred))
+info = "predict ML-Enzyme by Multi-Instance transfomer"
+displayMLMetrics(y_true, y_pred, "result", info)    
