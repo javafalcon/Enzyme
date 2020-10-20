@@ -150,7 +150,7 @@ def train(model, dataset, maxlen=100, num_epochs=20):
         
 #seqs, labels = load_mlec_nr(firstly_load=False)
 seqs, labels = load_mlec_nr(nrfile='data/mlec_90.fasta', 
-                            npzfile='mlec_nr90.npz', firstly_load=True)
+                            npzfile='mlec_nr90.npz', firstly_load=False)
 labels = np.array(labels)  
 N = len(seqs)
 y_pred = np.ndarray(shape=(0,7))
