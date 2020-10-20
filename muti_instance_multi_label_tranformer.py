@@ -55,30 +55,26 @@ class MILSTMModel(Model):
         self.brnn = layers.Bidirectional(layers.LSTM(10))
         self.d1 = layers.Dense(64, activation='relu')
         self.dp = layers.Dropout(0.5)
-        self.d2 = layers.Dense(7, activation='relu')
+        self.d2 = layers.Dense(7, activation='sigmoid')
     def call(self, seq):
         seq_frags = multi_instances_split(seq, num_fragment=self.num_fragment)
-        flag = True
         
+        mout = []
         for j in range(self.num_fragment):
             t = []
             for i in range(len(seq)):
                 t.append(seq_frags[i][j])
-                x = protseq_to_vec(t, maxlen=self.maxlen)
+            x = protseq_to_vec(t, maxlen=self.maxlen)
             x = self.embd(x)
             x = self.brnn(x)
             x = self.d1(x)
             x = self.dp(x)
             x = self.d2(x)
             
-            if flag:
-                out = x
-                flag = False
-            else:
-                out = layers.Concatenate()([out, x])
-            
-            out = layers.Dense(7, activation='sigmoid')(out)
-            return out
+            mout.append(x)
+        out = layers.Maximum()(mout)    
+        out = layers.Dense(7, activation='sigmoid')(out)
+        return out
         
 class MITransformerModel(Model):
     def __init__(self, n_layers=4, embed_dim=8, num_heads=2, ff_dim=64,
@@ -153,7 +149,8 @@ def train(model, dataset, maxlen=100, num_epochs=20):
                                                                 epoch_accuracy.result()))
         
 #seqs, labels = load_mlec_nr(firstly_load=False)
-seqs, labels = load_mlec_nr(nrfile='data/mlec_90.fasta', npzfile='mlec_nr90.npz')
+seqs, labels = load_mlec_nr(nrfile='data/mlec_90.fasta', 
+                            npzfile='mlec_nr90.npz', firstly_load=True)
 labels = np.array(labels)  
 N = len(seqs)
 y_pred = np.ndarray(shape=(0,7))
