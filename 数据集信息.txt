@@ -1,0 +1,156 @@
+1. 从2020_6 release Uniprot数据库中下载7个列表的酶，去掉了所有多标签的序列，去掉序列长度小于50AAs，各类别序列样本数：
+类别	nr100	nr40	nr60	nr80
+0： 	31676	3995	8837	15090
+1：		92751	10219	24868	42858
+2：		56851	8477	17857	28375
+3：		23439	1559	4418	9379
+4：		13898	1177	3469	6256
+5：		28402	1674	5931	12263
+6：		13509	690		2244	4749
+总计	260526	27791	67624	118970
+
+2. 从2020_6 release Uniprot数据库中下载非酶的蛋白质序列（查询标准：not ec* and reviewed)，随机挑选27791个长度大于等于50AAs的蛋白质序列构成负样本集
+
+3. 在pos_all_90.fasta(used by chel)数据集中存在错误，如P29677并不具备多标记属性，只属于第7类, 另外还有如下23个序列没有多标记：
+Q9GMC7 has not multi-label
+Q64410 has not multi-label
+P12394 has not multi-label
+Q9GMC8 has not multi-label
+Q95328 has not multi-label
+P05093 has not multi-label
+O73853 has not multi-label
+P70687 has not multi-label
+P27786 has not multi-label
+P30437 has not multi-label
+P70085 has not multi-label
+Q91Z85 has not multi-label
+P19100 has not multi-label
+O57525 has not multi-label
+P11715 has not multi-label
+Q92113 has not multi-label
+O60502 has not multi-label
+Q3SZ62 has not multi-label
+Q32KV0 has not multi-label
+Q54NE6 has not multi-label
+Q3T014 has not multi-label
+P15327 has not multi-label
+P51121 has not multi-label
+
+4. 在段力文提供的multi-label数据集中，共4479个序列，其中序号从4430到4478的序列只有EC7标签
+
+5. HEC-Net文中使用的训练集，共25732个Enzymes但其中有61个蛋白质不是酶蛋白质
+Q55BM5 is not in enzymes
+P00427 is not in enzymes
+P04039 is not in enzymes
+O94745 is not in enzymes
+Q9ZU25 is not in enzymes
+Q6BIP4 is not in enzymes
+P20457 is not in enzymes
+Q9W088 is not in enzymes
+P23955 is not in enzymes
+O93980 is not in enzymes
+Q6CLM5 is not in enzymes
+P0CN25 is not in enzymes
+Q500V9 is not in enzymes
+Q6BX14 is not in enzymes
+G2TRP5 is not in enzymes
+Q19196 is not in enzymes
+Q9P4W1 is not in enzymes
+A8XXC0 is not in enzymes
+Q6CJD7 is not in enzymes
+Q54Y85 is not in enzymes
+P27344 is not in enzymes
+P32799 is not in enzymes
+O18373 is not in enzymes
+A4IGH2 is not in enzymes
+Q9VPH2 is not in enzymes
+P34356 is not in enzymes
+Q9CGF7 is not in enzymes
+P04037 is not in enzymes
+P26310 is not in enzymes
+P32995 is not in enzymes
+Q6CHS6 is not in enzymes
+P33003 is not in enzymes
+P97997 is not in enzymes
+Q8NIZ4 is not in enzymes
+Q6FXJ8 is not in enzymes
+Q3SZN5 is not in enzymes
+P10174 is not in enzymes
+P43899 is not in enzymes
+Q6BQR8 is not in enzymes
+Q9CQ36 is not in enzymes
+P87174 is not in enzymes
+P80971 is not in enzymes
+Q54VE8 is not in enzymes
+A7YWS7 is not in enzymes
+Q75JQ9 is not in enzymes
+P45527 is not in enzymes
+Q9UHN1 is not in enzymes
+Q6FSK8 is not in enzymes
+Q6C030 is not in enzymes
+Q07047 is not in enzymes
+Q9VHS2 is not in enzymes
+Q01519 is not in enzymes
+P9WP73 is not in enzymes
+P00424 is not in enzymes
+P33845 is not in enzymes
+P49643 is not in enzymes
+O74988 is not in enzymes
+Q6BPV1 is not in enzymes
+Q10315 is not in enzymes
+O02334 is not in enzymes
+O94263 is not in enzymes
+
+训练集中使用了25272个Non Enzymes, 但其中95个是酶蛋白质
+Q18B37 B3FK34 Q8PVQ2 D3WAC1 P9WJF8 Q31E14 Q3T042 Q9MYW3 P34436 Q9C5Q9
+Q1HE58 Q6QNU9 Q9X315 P17695 Q08968 P94535 A4WLJ5 Q9P7Q6 A4X378 C3MWY7
+A8A8L4 Q6GV17 Q7K4B6 Q9H8K7 Q03GA1 Q46FS5 C4Z0F4 P72793 Q3A287 Q1GCM3
+A2BJZ2 Q59060 Q18B07 Q3ZY38 P55528 Q5FA52 Q1MQH1 Q8RFG6 Q9V3X5 Q54TC5
+A8MBP6 A1RXQ3 Q5F3B2 O59572 B0SK44 Q7TT45 P52073 Q9FHE9 P76509 A0RW81
+Q8IVT5 Q9Y2P4 P0ACV7 Q9JXS2 Q6LTX5 Q0SJ74 P9WQK2 B1YIU9 Q5W0B1 Q55G28
+Q9NPH3 Q57399 Q9ZJY6 Q01911 Q2FH58 Q7UWY8 P48236 Q315F5 C5CEQ4 Q2Y8V8
+B9DPU4 P44061 Q5VZM2 P34255 Q5FS37 O59517 Q01331 O94811 P52074 L8AXV5
+Q9FNG3 A2BN08 Q6PCB5 P58428 Q9VQE9 Q49115 A3DMH6 O29150 B3BM80 Q7TMS5
+P08358 P07142 P71629 Q46BE1 Q9AEU1
+
+HEC-Net测试集使用了12879个Enzymes，其中17个不是酶蛋白质，
+Q0VC30 is not in enzymes
+Q750A4 is not in enzymes
+P06810 is not in enzymes
+Q3SZN5 is not in enzymes
+Q9I8U0 is not in enzymes
+Q9NR33 is not in enzymes
+P23955 is not in enzymes
+A7YWS7 is not in enzymes
+P97997 is not in enzymes
+P0DJQ8 is not in enzymes
+P00425 is not in enzymes
+O94745 is not in enzymes
+P33803 is not in enzymes
+P0CN24 is not in enzymes
+Q6FXD0 is not in enzymes
+O18373 is not in enzymes
+Q6CPH8 is not in enzymes
+
+测试集使用了30374个Non Enzymes,其中121个酶蛋白质
+Q9HB29 O13890 Q9HA82 Q6MKE8 Q1WUM1 Q8N394 Q38VU3 Q032L8 A2C3V6 A9RHX1
+Q0P565 Q8NSH0 Q99210 Q9FT77 Q59066 Q57242 Q8LBZ4 Q3UV71 P63299 Q8DY37
+Q9VJ97 P9WM38 Q65JZ6 A5UJM2 O05253 O14141 Q9Z2B1 Q60534 C4Z916 Q6R5P0
+Q9LUJ8 Q9Z9F9 A6QLM0 Q9D8B1 P13504 Q9PJC9 O94673 B9E1G1 P41311 Q21CL6
+Q8TVD9 Q2FZK3 Q2YC50 P0AEQ0 P9WQJ2 P14719 P20999 Q5V059 Q96A61 Q6G253
+P38331 Q9HLA7 A6Q573 Q126I4 Q4FNS4 Q7TNV1 P41312 Q949P3 Q1LM83 P9WLP8
+Q9VF81 A0A075TR27 Q4FUF9 Q0WSX8 Q5T4D3 B9LSM2 V5NAL9 Q58251 Q73K74 Q6R5N8
+B9KXM8 Q9DD78 Q58536 Q58338 Q9H9V9 Q601T9 Q97YD5 Q1DAV2 Q53229 Q45978
+A8ANL5 P96648 Q9CN56 Q97BH2 A6UTP9 Q13478 P45844 Q57757 A3DMS6 B1L6M9
+P74594 Q24SM2 Q99PE8 B6ZK76 O28490 Q59063 P94534 Q9SYC9 Q8G4U8 O58215
+Q68VT4 A1WZ95 Q9RA11 Q9H1B7 P71635 P32481 A5IDM1 E1BGQ2 Q4ZFU2 O05213
+Q11VI6 P9WM66 Q20144 Q6MDL5 Q47319 P27544 P59114 Q5EA46 B3QNY9 B2A2M1
+Q9YFJ2
+
+6. 在自建的数据集EC_40.fasta中，有6个蛋白质使用psiblast搜索无法得到PSSM
+Q0WUY1 does not have pssm
+O24976 does not have pssm
+Q9I733 does not have pssm
+Q9I2Q1 does not have pssm
+Q9HYC5 does not have pssm
+Q9WYS1 does not have pssm

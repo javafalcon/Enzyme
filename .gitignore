@@ -1,2 +1,8 @@
 __pycache__/
 data/
+<<<<<<< HEAD
+=======
+model/
+pssm/
+*.npz
+>>>>>>> 144b2beb2cd80acbcf832c9822b963343db17c10

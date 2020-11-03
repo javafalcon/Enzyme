@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 0/5 cross training-testing:
 404	817	287	51	52	148	16	
 560	2955	800	138	134	310	87	
@@ -15,3 +16,17 @@ ACC: 0.375294 0/5 cross training-testing:
 0	1190	0	0	0	0	0	
 0	448	0	0	0	0	0	
 ACC: 0.366040 
+=======
+predict EC and Not EC:
+3859	1728
+1193	4470
+ACC:0.740356
+MCC:0.482544
+
+predict EC and not EC:使用累积PSSM矩阵，transformer,maxlen=800,embed_dim=20,num_heads=5
+[6741 1710]
+[1990 6461]
+accuracy: 0.7810909951485031
+MCC: 0.5624908096647365
+AUC: 0.7810909951485031
+>>>>>>> 144b2beb2cd80acbcf832c9822b963343db17c10
